@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>disable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>Diagrid.Aspire.Hosting.Catalyst</RootNamespace>
+        <PackageId>Diagrid.Aspire.Hosting.Catalyst</PackageId>
+        <AssemblyName>Diagrid.Aspire.Hosting.Catalyst</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- todo: Is this the package we should be depending on? -->
+        <PackageReference Include="Aspire.Hosting.AppHost" Version="13.1.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Include="Logo\*.txt" />
+    </ItemGroup>
+
+</Project>
