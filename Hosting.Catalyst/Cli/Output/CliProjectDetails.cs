@@ -11,11 +11,11 @@ public record CliProjectDetails
     public string Kind { get; init; } = string.Empty;
 
     [JsonPropertyName("metadata")]
-    public ProjectMetadata Metadata { get; init; } = new();
+    public required ProjectMetadata Metadata { get; init; }
 
     [JsonPropertyName("spec")]
-    public ProjectSpec Spec { get; init; } = new();
+    public required ProjectSpec Spec { get; init; }
 
     [JsonPropertyName("status")]
-    public CliProjectStatus Status { get; init; } = new();
+    public required CliProjectStatus Status { get; init; }
 }
