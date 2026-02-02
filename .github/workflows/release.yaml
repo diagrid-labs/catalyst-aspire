@@ -49,5 +49,4 @@ jobs:
       - name: "Publish to NuGet.org"
         working-directory: ./Hosting.Catalyst
         run: |
-          dotnet nuget add source --name nuget.org --username Diagrid --password ${{ secrets.NUGET_API_KEY }} --store-password-in-clear-text "https://api.nuget.org/v3/index.json" || true
-          dotnet nuget push ./nupkg/*.nupkg --source "nuget.org" --skip-duplicate
+          dotnet nuget push ./nupkg/*.nupkg --source "https://api.nuget.org/v3/index.json" --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
