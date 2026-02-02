@@ -7,6 +7,7 @@
         <RootNamespace>Diagrid.Aspire.Hosting.Catalyst</RootNamespace>
         <PackageId>Diagrid.Aspire.Hosting.Catalyst</PackageId>
         <AssemblyName>Diagrid.Aspire.Hosting.Catalyst</AssemblyName>
+        <IsPackable>true</IsPackable>
     </PropertyGroup>
 
     <ItemGroup>
