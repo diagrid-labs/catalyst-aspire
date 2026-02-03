@@ -8,7 +8,7 @@ This integration allows you to seamlessly connect your locally running Aspire ba
 
 ### Get a Catalyst Account
 
-[Sign up for a Diagrid Catalyst.](https://diagrid.ws/get-catalyst)
+[Sign up for a Diagrid Catalyst account.](https://diagrid.ws/get-catalyst)
 
 > You can skip this step if you already have one. 🙂
 
