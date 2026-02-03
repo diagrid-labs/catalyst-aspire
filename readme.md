@@ -26,14 +26,6 @@ diagrid login
 
 You can find [the package on NuGet](https://www.nuget.org/packages/Diagrid.Aspire.Hosting.Catalyst).
 
-#### CLI
-Run `dotnet nuget add Diagrid.Aspire.Hosting.Catalyst` in your Aspire AppHost project directory.
-
-#### IDE
-In Rider or Visual Studio right click on your project and select `Manage NuGet Packages`.
-
-In Visual Studio Code, you can use its [built in NuGet package management functionality](https://code.visualstudio.com/docs/csharp/package-management).
-
 ### Configure your AppHost
 
 At a minimum, you must always add the following to your project to enable the integration: 
