@@ -37,9 +37,22 @@ public static class ResourceBuilderExtensions
             DisplayText = "Catalyst Dashboard",
         });
 
-        applicationBuilder.Eventing.Subscribe<BeforeStartEvent>((beforeStartEvent, cancellationToken) => 
-            new CatalystBeforeStartHandler(beforeStartEvent)
-                .EnsureCatalystProvisioning(cancellationToken));
+        catalystProject.OnInitializeResource(async (resource, initializeResourceEvent, cancellationToken) =>
+        {
+            var eventing = initializeResourceEvent.Eventing;
+            var services = initializeResourceEvent.Services;
+            
+            // note: This is necessary so that anything that has an outstanding .WaitFor will be notified.
+            await eventing.PublishAsync(new BeforeResourceStartedEvent(resource, services), cancellationToken);
+
+            await new CatalystLifecycleHandler(
+                resource,
+                initializeResourceEvent.Services.GetRequiredService<ResourceLoggerService>(),
+                initializeResourceEvent.Services.GetRequiredService<ResourceNotificationService>(),
+                initializeResourceEvent.Services.GetRequiredService<CatalystProvisioner>()
+            )
+                .ProvisionCatalyst(cancellationToken);
+        });
 
         return catalystProject;
     }
@@ -57,7 +70,7 @@ public static class ResourceBuilderExtensions
         var catalystProjectBuilder = applicationBuilder.CreateResourceBuilder(applicationBuilder.EnsureCatalystResource());
 
         resourceBuilder.WaitForCompletion(catalystProjectBuilder);
-
+        
         if (
             resourceBuilder.Resource is IResourceWithEndpoints resourceWithEndpoints
             && resourceWithEndpoints.GetEndpoints().FirstOrDefault((endpoint) => endpoint.IsHttp) is {} httpEndpoint

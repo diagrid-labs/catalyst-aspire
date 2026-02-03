@@ -1,13 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net10.0</TargetFramework>
+        <TargetFrameworks>net10.0;net9.0;net8.0</TargetFrameworks>
         <ImplicitUsings>disable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <RootNamespace>Diagrid.Aspire.Hosting.Catalyst</RootNamespace>
         <PackageId>Diagrid.Aspire.Hosting.Catalyst</PackageId>
         <AssemblyName>Diagrid.Aspire.Hosting.Catalyst</AssemblyName>
         <IsPackable>true</IsPackable>
+        <PackageIcon>/catalyst-logo.png</PackageIcon>
     </PropertyGroup>
 
     <ItemGroup>
@@ -17,6 +18,12 @@
 
     <ItemGroup>
       <EmbeddedResource Include="Logo\*.txt" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <Content Include="../catalyst-logo.png" Link="/catalyst-logo.png" Pack="true" PackagePath="/" >
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
     </ItemGroup>
 
 </Project>

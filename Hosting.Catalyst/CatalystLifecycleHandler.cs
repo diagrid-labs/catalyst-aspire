@@ -1,57 +1,22 @@
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Aspire.Hosting.ApplicationModel;
 using Diagrid.Aspire.Hosting.Catalyst.Logo;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Diagrid.Aspire.Hosting.Catalyst;
 
-internal class CatalystBeforeStartHandler
+internal class CatalystLifecycleHandler(
+    CatalystProject catalystProject,
+    ResourceLoggerService resourceLogger,
+    ResourceNotificationService notifications,
+    CatalystProvisioner provisioner
+)
 {
-    private readonly ResourceNotificationService notifications;
-    private readonly CatalystProvisioner provisioner;
-    private readonly CatalystProject catalystProject;
-    private readonly ILogger logger;
-    private readonly string projectName;
-
-    public CatalystBeforeStartHandler(BeforeStartEvent beforeStartEvent)
-    {
-        notifications = beforeStartEvent.Services.GetRequiredService<ResourceNotificationService>();
-        var applicationModel1 = beforeStartEvent.Services.GetRequiredService<DistributedApplicationModel>();
-        provisioner = beforeStartEvent.Services.GetRequiredService<CatalystProvisioner>();
-
-        catalystProject = applicationModel1.Resources.Single((resource) => resource is CatalystProject)
-            as CatalystProject ?? throw new("Huh?");
-        logger = beforeStartEvent.Services.GetRequiredService<ResourceLoggerService>()
-            .GetLogger(catalystProject);
-
-        projectName = catalystProject.ProjectName;
-    }
-
-    public Task EnsureCatalystProvisioning(CancellationToken cancellationToken)
-    {
-        // todo: This is going to run after the event completes so that it doesn't hang AppHost start.
-        _ = Task.Run(async () => {
-            
-            using var runawayCancellationSource = new CancellationTokenSource();
-
-            try
-            {
-                await ProvisionCatalystAsync(runawayCancellationSource.Token);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "");
-            }
-        });
-
-        return Task.CompletedTask;
-    }
-
-    private async Task ProvisionCatalystAsync(CancellationToken cancellationToken)
+    private readonly ILogger logger = resourceLogger.GetLogger(catalystProject);
+    
+    public async Task ProvisionCatalyst(CancellationToken cancellationToken)
     {
         LogWelcomeMessage();
 
@@ -105,7 +70,7 @@ internal class CatalystBeforeStartHandler
 
         try
         {
-            await provisioner.CreateProject(projectName, cancellationToken);
+            await provisioner.CreateProject(catalystProject.ProjectName, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -129,7 +94,7 @@ internal class CatalystBeforeStartHandler
 
         try
         {
-            await provisioner.UseProject(projectName, cancellationToken);
+            await provisioner.UseProject(catalystProject.ProjectName, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -153,7 +118,7 @@ internal class CatalystBeforeStartHandler
 
         try
         {
-            var projectDetails = await provisioner.GetProjectDetails(projectName, cancellationToken);
+            var projectDetails = await provisioner.GetProjectDetails(catalystProject.ProjectName, cancellationToken);
 
             catalystProject.HttpEndpoint.SetResult(projectDetails.HttpEndpoint.ToString());
             catalystProject.GrpcEndpoint.SetResult(projectDetails.GrpcEndpoint.ToString());
@@ -234,7 +199,7 @@ internal class CatalystBeforeStartHandler
         {
             try
             {
-                if (await provisioner.CheckKvStoreExists(pair.Key, projectName, originalCancellationToken)) continue;
+                if (await provisioner.CheckKvStoreExists(pair.Key, catalystProject.ProjectName, originalCancellationToken)) continue;
 
                 await provisioner.CreateKvStore(pair.Key, pair.Value, cancellationToken);
             }
@@ -263,7 +228,7 @@ internal class CatalystBeforeStartHandler
         {
             try
             {
-                await provisioner.CreateComponent(pair.Value, projectName, cancellationToken);
+                await provisioner.CreateComponent(pair.Value, catalystProject.ProjectName, cancellationToken);
             }
             catch (Exception ex)
             {
