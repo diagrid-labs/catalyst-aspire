@@ -61,13 +61,19 @@ public static class ResourceBuilderExtensions
     ///     Configures a project to use Catalyst.
     /// </summary>
     /// <param name="resourceBuilder"></param>
+    /// <param name="catalystProjectBuilder"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    public static IResourceBuilder<ResourceType> WithCatalyst<ResourceType>(this IResourceBuilder<ResourceType> resourceBuilder)
+    public static IResourceBuilder<ResourceType> WithCatalyst<ResourceType>(this IResourceBuilder<ResourceType> resourceBuilder, IResourceBuilder<CatalystProject>? catalystProjectBuilder = null)
     where ResourceType : Resource, IResourceWithEnvironment, IResourceWithWaitSupport
     {
         var applicationBuilder = resourceBuilder.ApplicationBuilder;
-        var catalystProjectBuilder = applicationBuilder.CreateResourceBuilder(applicationBuilder.EnsureCatalystResource());
+        var catalystProjects = applicationBuilder.EnsureCatalystResources();
+
+        if (catalystProjects.Count > 1 && catalystProjectBuilder is null)
+            throw new($"Your Aspire orchestration has multiple Catalyst projects configured. Please specify which one to use when calling {nameof(WithCatalyst)}.");
+            
+        catalystProjectBuilder ??= applicationBuilder.CreateResourceBuilder(catalystProjects.Single());
 
         resourceBuilder.WaitForCompletion(catalystProjectBuilder);
         
@@ -84,6 +90,7 @@ public static class ResourceBuilderExtensions
                     ".",
                     [
                         "dev", "run",
+                        "--approve",
                         "--project", catalystProjectBuilder.Resource.ProjectName,
                         "--app-id", resourceBuilder.Resource.Name,
                         "--app-port", httpEndpoint.Property(EndpointProperty.Port),
@@ -241,11 +248,16 @@ public static class ResourceBuilderExtensions
     /// <param name="applicationBuilder"></param>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    internal static CatalystProject EnsureCatalystResource(this IDistributedApplicationBuilder applicationBuilder)
+    internal static IList<CatalystProject> EnsureCatalystResources(this IDistributedApplicationBuilder applicationBuilder)
     {
-        if (applicationBuilder.Resources.SingleOrDefault((resource) => resource is CatalystProject) is not CatalystProject catalystProject)
+        var catalystProjectResources = applicationBuilder.Resources
+            .Where((resource) => resource is CatalystProject)
+            .Cast<CatalystProject>()
+            .ToList();
+        
+        if (! catalystProjectResources.Any())
             throw new($"Remember to configure your Catalyst project by calling {nameof(AddCatalystProject)}.");
-
-        return catalystProject;
+        
+        return catalystProjectResources;
     }
 }

@@ -5,8 +5,8 @@ using Projects;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-builder
-    .AddCatalystProject("catalyst-aspire-test")
+var catalystProjectOne = builder
+    .AddCatalystProject("aspire-test")
     .WithCatalystKvStore("test-kv")
     .WithCatalystPubSub("test-pubsub")
     .WithComponent("test-pubsub", new DiagridPubSub
@@ -26,6 +26,6 @@ builder
 
 builder
     .AddProject<TestApi>("test-api")
-    .WithCatalyst();
+    .WithCatalyst(catalystProjectOne);
 
 builder.Build().Run();

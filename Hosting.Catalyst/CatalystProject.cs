@@ -7,7 +7,7 @@ namespace Diagrid.Aspire.Hosting.Catalyst;
 
 public class CatalystProject : IResource
 {
-    public string Name => "catalyst";
+    public string Name => $"catalyst-{ProjectName}";
     public required string ProjectName { get; init; }
     public ResourceAnnotationCollection Annotations { get; init; } = [];
 
