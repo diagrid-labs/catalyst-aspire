@@ -12,6 +12,25 @@ public class CliCatalystProvisioner : CatalystProvisioner
         await Commands.UseCatalyst(cancellationToken);
     }
 
+    public async Task CreateSubscription(string projectName, SubscriptionDescriptor descriptor, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Commands.CreateSubscription(descriptor.Name, new()
+            {
+                Project = projectName,
+                Component = descriptor.Component,
+                Topic = descriptor.Topic,
+                Route = descriptor.Route,
+                Scopes = descriptor.Scopes,
+            }, cancellationToken);
+        }
+        catch
+        {
+            // todo: Would like a silent/idempotent create.
+        }
+    }
+
     public async Task CreateProject(string projectName, CancellationToken cancellationToken)
     {
         try

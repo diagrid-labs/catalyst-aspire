@@ -32,6 +32,7 @@ internal class CatalystLifecycleHandler(
         await EnsureApplicationsAsync(cancellationToken);
         await EnsureServicesAsync(cancellationToken, cancellationToken);
         await EnsureComponentsAsync(cancellationToken);
+        await EnsureSubscriptionsAsync(cancellationToken);
         await CompleteProvisioningAsync();
     }
 
@@ -244,6 +245,33 @@ internal class CatalystLifecycleHandler(
         }
     }
 
+    private async Task EnsureSubscriptionsAsync(CancellationToken cancellationToken)
+    {
+        await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
+        {
+            State = new("Ensuring subscriptions", KnownResourceStateStyles.Info),
+        });
+
+        foreach (var pair in catalystProject.Subscriptions)
+        {
+            try
+            {
+                await provisioner.CreateSubscription(catalystProject.ProjectName, pair.Value, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, ex.Message);
+
+                await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
+                {
+                    State = new(KnownResourceStates.FailedToStart, KnownResourceStateStyles.Error),
+                });
+
+                throw;
+            }
+        }
+    }
+    
     private async Task CompleteProvisioningAsync()
     {
         await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with

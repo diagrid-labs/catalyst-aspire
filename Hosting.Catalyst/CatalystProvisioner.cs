@@ -17,6 +17,15 @@ public interface CatalystProvisioner
     Task Init(CancellationToken cancellationToken);
 
     /// <summary>
+    ///     Creates a subscription in Catalyst.
+    /// </summary>
+    /// <param name="projectName"></param>
+    /// <param name="descriptor"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    Task CreateSubscription(string projectName, SubscriptionDescriptor descriptor, CancellationToken cancellationToken);
+    
+    /// <summary>
     ///     Creates a project in Catalyst.
     /// </summary>
     /// <param name="projectName"></param>

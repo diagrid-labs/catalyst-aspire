@@ -26,6 +26,7 @@ var catalystProjectOne = builder
 
 builder
     .AddProject<TestApi>("test-api")
-    .WithCatalyst(catalystProjectOne);
+    .WithCatalyst(catalystProjectOne)
+    .WithSubscription("test-subscription", "test-pubsub", "test", "/");
 
 builder.Build().Run();

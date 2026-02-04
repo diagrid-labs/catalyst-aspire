@@ -125,6 +125,37 @@ public static class ResourceBuilderExtensions
         return resourceBuilder;
     }
 
+    public static IResourceBuilder<ResourceType> WithSubscription<ResourceType>(
+        this IResourceBuilder<ResourceType> resourceBuilder,
+        string name,
+        string component,
+        string topic,
+        string route
+    ) where ResourceType : Resource, IResourceWithEnvironment, IResourceWithWaitSupport
+    {
+        var applicationBuilder = resourceBuilder.ApplicationBuilder;
+        var catalystProject = applicationBuilder
+            .EnsureCatalystResources()
+            .FirstOrDefault((catalystProject) => catalystProject.AppDetails.Any((app) => app.Key == resourceBuilder.Resource));
+
+        if (catalystProject is null)
+            throw new("This resource is not associated with a Catalyst project.");
+        
+        catalystProject.Subscriptions.Add(name, new()
+        {
+            Name = name,
+            Component = component,
+            Topic = topic,
+            Route = route,
+            Scopes = 
+            [
+                resourceBuilder.Resource.Name,
+            ],
+        });
+
+        return resourceBuilder;
+    }
+    
     /// <summary>
     ///     Adds a weakly-typed component to the Catalyst project.
     /// </summary>
@@ -241,7 +272,7 @@ public static class ResourceBuilderExtensions
 
         return catalystProject;
     }
-
+    
     /// <summary>
     ///     Ensures the user has configured a Catalyst project as part of their orchestration.
     /// </summary>

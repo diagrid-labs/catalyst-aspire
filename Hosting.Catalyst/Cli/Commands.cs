@@ -13,6 +13,33 @@ namespace Diagrid.Aspire.Hosting.Catalyst.Cli;
 
 internal static class Commands
 {
+    public static async Task CreateSubscription(
+        string name,
+        CreateSubscriptionOptions options,
+        CancellationToken cancellationToken
+    )
+    {
+        var arguments = new List<string>
+        {
+            "subscription",
+            "create",
+            name,
+        };
+
+        AddOptionalArgument(arguments, "--component", options.Component);
+        AddOptionalArgument(arguments, "--topic", options.Topic);
+        AddOptionalArgument(arguments, "--route", options.Route);
+        AddScopesArgument(arguments, options.Scopes);
+        AddOptionalArgument(arguments, "--project", options.Project);
+        AddFlagArgument(arguments, "--wait", options.Wait);
+
+        var processStartInfo = CreateProcessStartInfo(arguments);
+
+        var (output, _, exitCode) = await ExecuteProcessAsync(processStartInfo, cancellationToken);
+
+        CheckExitCode(exitCode, output);
+    }
+    
     public static async Task UseCatalyst(CancellationToken cancellationToken)
     {
         var arguments = new List<string>
