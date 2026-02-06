@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
+        <Authors>Diagrid</Authors>
         <TargetFrameworks>net10.0;net9.0;net8.0</TargetFrameworks>
         <ImplicitUsings>disable</ImplicitUsings>
         <Nullable>enable</Nullable>
@@ -9,6 +10,8 @@
         <AssemblyName>Diagrid.Aspire.Hosting.Catalyst</AssemblyName>
         <IsPackable>true</IsPackable>
         <PackageIcon>/catalyst-logo.png</PackageIcon>
+        <PackageReadmeFile>readme.md</PackageReadmeFile>
+        <RepositoryUrl>https://github.com/diagrid-labs/catalyst-aspire</RepositoryUrl>
     </PropertyGroup>
 
     <ItemGroup>

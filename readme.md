@@ -1,18 +1,16 @@
-# Diagrid Catalyst Aspire
+# Diagrid Catalyst Aspire Integration
 
 ![NuGet Version](https://img.shields.io/nuget/v/Diagrid.Aspire.Hosting.Catalyst)
 
-This integration allows you to seamlessly connect your locally running Aspire based projects to live Diagrid Catalyst infrastructure.
+This integration allows you to seamlessly connect your locally running Aspire projects to live Diagrid Catalyst infrastructure.
 
 ## Getting Started
 
-### Get a Catalyst Account
+### 1 - Get a Catalyst Account
 
-[Sign up for a Diagrid Catalyst account.](https://diagrid.ws/get-catalyst)
+[Sign up for a Diagrid Catalyst account.](https://www.diagrid.io/catalyst)
 
-> You can skip this step if you already have one. 🙂
-
-### Install the Diagrid CLI
+### 2 - Install the Diagrid CLI
 
 This project requires that you have the [Diagrid CLI](https://docs.diagrid.io/references/catalyst/cli-reference/intro) installed.
 
@@ -22,11 +20,11 @@ After installing the CLI, please be sure to [log in to your Diagrid account](htt
 diagrid login
 ```
 
-### Add the integration to your AppHost project
+### 3-  Add the integration to your AppHost project
 
 You can find [the package on NuGet](https://www.nuget.org/packages/Diagrid.Aspire.Hosting.Catalyst).
 
-### Configure your AppHost
+### 4 - Configure your AppHost
 
 At a minimum, you must always add the following to your project to enable the integration: 
 
@@ -36,7 +34,7 @@ builder.AddCatalystProject("your-desired-project-name");
 
 This will ensure that a Catalyst project exists or that you are connected to an existing one.
 
-After that, you can start defining your [Catalyst applications](https://docs.diagrid.io/catalyst/connect) by annotating 
+After that, you can start defining your [Catalyst appids](https://docs.diagrid.io/catalyst/connect) by annotating 
 your project resources and containers:
 
 ```csharp
@@ -47,11 +45,11 @@ builder
 
 Each resource that you tag in this way will automatically have an application entry created in the Catalyst UI.
 
-## Configuring Services and Components
+## 5 - Configuring Managed Services and Components
 
-Outside your Catalyst project and applications, you are also going to want to configure components and optionally services.
+Outside your Catalyst project and appids, you are also going to want to configure components and optionally managed services.
 
-### Services
+### Managed Services
 
 Catalyst offers easy to use managed services that can be used for state storage and pubsub messaging components.
 
@@ -83,3 +81,9 @@ builder
         },
     });
 ```
+
+> We are working on getting all supported components added.  If you need a component that is not listed, you can fall back on the `IDictionary<string, object>` overload of `WithComponent`.
+
+## Additional Resources
+
+See an example of this integration being used in the [Diagrid Catalyst Workflows demo](https://github.com/diagrid-labs/catalyst-order-workflow-dotnet).
