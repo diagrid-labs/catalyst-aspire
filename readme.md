@@ -20,7 +20,7 @@ After installing the CLI, please be sure to [log in to your Diagrid account](htt
 diagrid login
 ```
 
-### 3-  Add the integration to your AppHost project
+### 3 - Add the integration to your AppHost project
 
 You can find [the package on NuGet](https://www.nuget.org/packages/Diagrid.Aspire.Hosting.Catalyst).
 
