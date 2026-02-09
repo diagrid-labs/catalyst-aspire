@@ -5,6 +5,9 @@ using Diagrid.Aspire.Hosting.Catalyst.Model;
 
 namespace Diagrid.Aspire.Hosting.Catalyst;
 
+/// <summary>
+///     Represents an entire catalyst project and the resources contained within it.
+/// </summary>
 public class CatalystProject : IResource
 {
     /// <summary>
@@ -20,9 +23,7 @@ public class CatalystProject : IResource
     
     internal TaskCompletionSource<string> HttpEndpoint { get; } = new();
     internal TaskCompletionSource<string> GrpcEndpoint { get; } = new();
-
     internal Dictionary<Resource, TaskCompletionSource<AppDetails>> AppDetails { get; init; } = new();
-
     internal Dictionary<string, PubSubDescriptor> PubSubs { get; init; } = new();
     internal Dictionary<string, KvStoreDescriptor> KvStores { get; init; } = new();
     internal Dictionary<string, ComponentDescriptor> Components { get; init; } = new();
