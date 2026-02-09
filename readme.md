@@ -51,9 +51,9 @@ Outside your Catalyst project and appids, you are also going to want to configur
 
 ### Managed Services
 
-Catalyst offers easy to use managed services that can be used for state storage and pubsub messaging components.
+Catalyst offers easy-to-use managed services for state storage and pubsub messaging components.
 
-To ensure these services are available in your project, add the following when configuring your project:
+To ensure these services are available in your project, add the following to your AppHost:
 
 ```csharp
 builder
