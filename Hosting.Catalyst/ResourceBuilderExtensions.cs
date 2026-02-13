@@ -245,6 +245,10 @@ public static class ResourceBuilderExtensions
 
     /// <summary>
     ///     Adds a sample Catalyst-managed pubsub and pubsub component to the Catalyst project.
+    ///     <br /><br />
+    ///     This overload is useful for demos and quick prototyping, it's recommended to use the full overload for your projects.
+    ///     <br /><br />
+    ///     See: <see cref="WithCatalystPubSub(IResourceBuilder{CatalystProject}, string, IList{string}?)"/> 
     /// </summary>
     /// <param name="catalystProject"></param>
     /// <returns></returns>
@@ -263,6 +267,8 @@ public static class ResourceBuilderExtensions
     
     /// <summary>
     ///     Adds a Catalyst-managed PubSub to the Catalyst project.
+    ///     <br /><br />
+    ///     Please note that does not add a component to the project. 
     /// </summary>
     /// <param name="catalystProject"></param>
     /// <param name="name"></param>
@@ -292,6 +298,10 @@ public static class ResourceBuilderExtensions
 
     /// <summary>
     ///     Adds a sample Catalyst-managed KV store and state component to the Catalyst project.
+    ///     <br /><br />
+    ///     This overload is useful for demos and quick prototyping, it's recommended to use the full overload for your projects.
+    ///     <br /><br />
+    ///     See: <see cref="WithCatalystKvStore(IResourceBuilder{CatalystProject}, string, IList{string}?)"/>
     /// </summary>
     /// <param name="catalystProject"></param>
     /// <returns></returns>
@@ -310,6 +320,8 @@ public static class ResourceBuilderExtensions
     
     /// <summary>
     ///     Adds a Catalyst-managed KV store to the Catalyst project.
+    ///     <br /><br />
+    ///     Please note that does not add a component to the project.
     /// </summary>
     /// <param name="catalystProject"></param>
     /// <param name="name"></param>
