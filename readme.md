@@ -88,7 +88,23 @@ builder
     });
 ```
 
-> We are working on getting all supported components added.  If you need a component that is not listed, you can fall back on the `IDictionary<string, object>` overload of `WithComponent`.
+#### Custom Components
+
+> Work is ongoing to get all supported components added!
+
+If you need a component that does not have strong typing yet, you can always fall back on the `IDictionary<string, object>` overload of `WithComponent`:
+
+```csharp
+.WithComponent(
+    "diagrid-homepage", 
+    "bindings.http", 
+    new Dictionary<string, object?>
+    {
+        ["url"] = "https://diagrid.io",
+    },
+    [ "test-api" ]
+)
+```
 
 ## Additional Resources
 
