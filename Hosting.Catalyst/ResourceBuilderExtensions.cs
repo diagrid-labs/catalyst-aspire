@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Diagrid.Aspire.Hosting.Catalyst.Cli;
+using Diagrid.Aspire.Hosting.Catalyst.ComponentSpec;
 using Diagrid.Aspire.Hosting.Catalyst.Model;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,6 +15,9 @@ namespace Diagrid.Aspire.Hosting.Catalyst;
 
 public static class ResourceBuilderExtensions
 {
+    public const string SampleKvName = "kvstore";
+    public const string SamplePubsubName = "pubsub";
+    
     /// <summary>
     ///     Associates an Aspire orchestration to a Catalyst project.
     /// </summary>
@@ -22,8 +27,13 @@ public static class ResourceBuilderExtensions
     {
         applicationBuilder.Services.AddSingleton<CatalystProvisioner, CliCatalystProvisioner>();
 
+        var entryAssembly = Assembly.GetEntryAssembly();
+        var entryPointNamespace = entryAssembly?.EntryPoint?.DeclaringType?.Namespace;
+
         // todo: Either replace `"aspire"` here with a default inferred from `applicationBuilder`, or make `projectName` a required param.
-        var projectName = customProjectName ?? "aspire";
+        var projectName = customProjectName 
+            ?? entryPointNamespace?.Replace(".", "-").ToLower()
+                ?? "aspire";
 
         // todo: Custom icon, support pending https://github.com/dotnet/aspire/issues/8684
         var catalystProject = applicationBuilder.AddResource(new CatalystProject
@@ -157,6 +167,22 @@ public static class ResourceBuilderExtensions
     }
     
     /// <summary>
+    ///     Adds a subscription to the sample pubsub component and service.
+    /// </summary>
+    /// <param name="resourceBuilder"></param>
+    /// <param name="topic"></param>
+    /// <param name="path"></param>
+    /// <typeparam name="ResourceType"></typeparam>
+    /// <returns></returns>
+    public static IResourceBuilder<ResourceType> WithSubscription<ResourceType>(this IResourceBuilder<ResourceType> resourceBuilder, string topic, string path)
+    where ResourceType : Resource, IResourceWithEnvironment, IResourceWithWaitSupport
+    {
+        var name = $"{resourceBuilder.Resource.Name}-{SamplePubsubName}";
+
+        return resourceBuilder.WithSubscription(name, SamplePubsubName, topic, path);
+    }
+    
+    /// <summary>
     ///     Adds a weakly-typed component to the Catalyst project.
     /// </summary>
     /// <param name="catalystProject"></param>
@@ -164,7 +190,7 @@ public static class ResourceBuilderExtensions
     /// <param name="type"></param>
     /// <param name="metadata"></param>
     /// <param name="scopes"></param>
-    public static void WithComponent(
+    public static IResourceBuilder<CatalystProject> WithComponent(
         this IResourceBuilder<CatalystProject> catalystProject,
         string name,
         string type,
@@ -179,6 +205,8 @@ public static class ResourceBuilderExtensions
             Scopes = scopes,
             Metadata = metadata,
         });
+
+        return catalystProject;
     }
 
     /// <summary>
@@ -216,6 +244,24 @@ public static class ResourceBuilderExtensions
     }
 
     /// <summary>
+    ///     Adds a sample Catalyst-managed pubsub and pubsub component to the Catalyst project.
+    /// </summary>
+    /// <param name="catalystProject"></param>
+    /// <returns></returns>
+    public static IResourceBuilder<CatalystProject> WithCatalystPubSub(this IResourceBuilder<CatalystProject> catalystProject)
+    {
+        return catalystProject
+            .WithCatalystPubSub(SamplePubsubName)
+            .WithComponent(SamplePubsubName, new DiagridPubSub
+            {
+                Metadata = new()
+                {
+                    PubSubName = SamplePubsubName,
+                },
+            });
+    }
+    
+    /// <summary>
     ///     Adds a Catalyst-managed PubSub to the Catalyst project.
     /// </summary>
     /// <param name="catalystProject"></param>
@@ -244,6 +290,24 @@ public static class ResourceBuilderExtensions
         return catalystProject;
     }
 
+    /// <summary>
+    ///     Adds a sample Catalyst-managed KV store and state component to the Catalyst project.
+    /// </summary>
+    /// <param name="catalystProject"></param>
+    /// <returns></returns>
+    public static IResourceBuilder<CatalystProject> WithCatalystKvStore(this IResourceBuilder<CatalystProject> catalystProject)
+    {
+        return catalystProject
+            .WithCatalystKvStore(SampleKvName)
+            .WithComponent(SampleKvName, new DiagridStateStore
+            {
+                Metadata = new()
+                {
+                    State = SampleKvName,
+                },
+            });
+    }
+    
     /// <summary>
     ///     Adds a Catalyst-managed KV store to the Catalyst project.
     /// </summary>
