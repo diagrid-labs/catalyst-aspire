@@ -23,6 +23,7 @@ public class CatalystProject : IResource
     
     internal TaskCompletionSource<string> HttpEndpoint { get; } = new();
     internal TaskCompletionSource<string> GrpcEndpoint { get; } = new();
+    internal ProjectDescriptor ProjectDescriptor { get; init; } = new();
     internal Dictionary<Resource, TaskCompletionSource<AppDetails>> AppDetails { get; init; } = new();
     internal Dictionary<string, PubSubDescriptor> PubSubs { get; init; } = new();
     internal Dictionary<string, KvStoreDescriptor> KvStores { get; init; } = new();

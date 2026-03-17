@@ -23,7 +23,7 @@ public static class ResourceBuilderExtensions
     /// </summary>
     /// <param name="applicationBuilder"></param>
     /// <param name="customProjectName"></param>
-    public static IResourceBuilder<CatalystProject> AddCatalystProject(this IDistributedApplicationBuilder applicationBuilder, string? customProjectName = null)
+    public static IResourceBuilder<CatalystProject> AddCatalystProject(this IDistributedApplicationBuilder applicationBuilder, string? customProjectName = null, ProjectDescriptor? descriptor = null)
     {
         applicationBuilder.Services.AddSingleton<CatalystProvisioner, CliCatalystProvisioner>();
 
@@ -39,6 +39,7 @@ public static class ResourceBuilderExtensions
         var catalystProject = applicationBuilder.AddResource(new CatalystProject
         {
             ProjectName = projectName,
+            ProjectDescriptor = descriptor ?? new(),
         });
 
         catalystProject.WithAnnotation(new ResourceUrlAnnotation

@@ -71,7 +71,7 @@ internal class CatalystLifecycleHandler(
 
         try
         {
-            await provisioner.CreateProject(catalystProject.ProjectName, cancellationToken);
+            await provisioner.CreateProject(catalystProject.ProjectName, catalystProject.ProjectDescriptor, cancellationToken);
         }
         catch (Exception ex)
         {

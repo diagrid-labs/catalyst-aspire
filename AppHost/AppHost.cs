@@ -6,7 +6,10 @@ using Projects;
 var builder = DistributedApplication.CreateBuilder(args);
 
 var catalystProjectOne = builder
-    .AddCatalystProject()
+    .AddCatalystProject(descriptor: new()
+    {
+        EnableManagedWorkflow = true,
+    })
     .WithCatalystKvStore()
     .WithCatalystPubSub()
     .WithComponent(

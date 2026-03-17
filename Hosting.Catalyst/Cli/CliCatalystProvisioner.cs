@@ -31,11 +31,16 @@ public class CliCatalystProvisioner : CatalystProvisioner
         }
     }
 
-    public async Task CreateProject(string projectName, CancellationToken cancellationToken)
+    public async Task CreateProject(string projectName, ProjectDescriptor descriptor, CancellationToken cancellationToken)
     {
         try
         {
-            await Commands.CreateProject(projectName, cancellationToken: cancellationToken);
+            await Commands.CreateProject(projectName, new()
+            {
+                EnableManagedWorkflow = descriptor.EnableManagedWorkflow,
+                DeployManagedKv = false,
+                DeployManagedPubsub = false,
+            }, cancellationToken);
         }
         catch
         {
