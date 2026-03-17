@@ -106,6 +106,9 @@ If you need a component that does not have strong typing yet, you can always fal
 )
 ```
 
+The example above will create an [http binding](https://docs.diagrid.io/references/catalyst/components-reference/bindings/http) with the `url` property set to `https://diagrid.io`.  The final array parameter with `["test-api"]` is where you can provide which appids to scope the component to.
+
+
 ## Additional Resources
 
 See an example of this integration being used in the [Diagrid Catalyst Workflows demo](https://github.com/diagrid-labs/catalyst-order-workflow-dotnet).

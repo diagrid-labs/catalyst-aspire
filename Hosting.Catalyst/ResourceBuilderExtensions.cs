@@ -314,6 +314,7 @@ public static class ResourceBuilderExtensions
                 Metadata = new()
                 {
                     State = SampleKvName,
+                    ActorStateStore = true,
                 },
             });
     }

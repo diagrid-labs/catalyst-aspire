@@ -33,4 +33,7 @@ public record DiagridStateSpecMetadata
 
     [JsonPropertyName("outboxPubsub")]
     public string? OutboxPubsub { get; init; }
+
+    [JsonPropertyName("actorStateStore")]
+    public bool ActorStateStore { get; init; }
 }
