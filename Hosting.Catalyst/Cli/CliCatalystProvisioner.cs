@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Diagrid.Aspire.Hosting.Catalyst.Model;
@@ -42,9 +43,10 @@ public class CliCatalystProvisioner : CatalystProvisioner
                 DeployManagedPubsub = false,
             }, cancellationToken);
         }
-        catch
+        catch (InvalidOperationException invalid)
         {
-            // todo: Would like a silent/idempotent create.
+            if (invalid.Message.Contains("configured maximum number of projects"))
+                throw;
         }
     }
 
