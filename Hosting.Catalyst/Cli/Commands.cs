@@ -352,10 +352,15 @@ internal static class Commands
             throw new InvalidOperationException("Failed to start diagrid process");
         }
 
+        // Start reading stdout/stderr before waiting for exit to avoid
+        // deadlock when the pipe buffer fills (especially on Windows).
+        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+
         await process.WaitForExitAsync(cancellationToken);
 
-        var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var error = await process.StandardError.ReadToEndAsync(cancellationToken);
+        var output = await outputTask;
+        var error = await errorTask;
 
         return (output, error, process.ExitCode);
     }
