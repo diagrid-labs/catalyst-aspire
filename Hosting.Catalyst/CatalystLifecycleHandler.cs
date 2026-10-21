@@ -246,8 +246,6 @@ internal class CatalystLifecycleHandler(
         {
             try
             {
-                if (await provisioner.CheckKvStoreExists(pair.Key, catalystProject.ProjectName, originalCancellationToken)) continue;
-
                 await provisioner.CreateKvStore(pair.Key, pair.Value, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

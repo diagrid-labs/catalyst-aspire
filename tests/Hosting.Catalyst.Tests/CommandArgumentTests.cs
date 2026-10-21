@@ -135,8 +135,11 @@ public class CommandArgumentTests
     }
 
     [Fact]
-    public void Kv_list_passes_project_explicitly()
-        => Assert.Equal(["kv", "list", "--output", "json", "--project", "demo"], Commands.BuildListKvStoresArgs("demo"));
+    public void Existence_probes_are_get_calls_with_project()
+    {
+        Assert.Equal(["kv", "get", "statestore", "--project", "demo"], Commands.BuildGetKvStoreArgs("statestore", "demo"));
+        Assert.Equal(["pubsub", "get", "pubsub", "--project", "demo"], Commands.BuildGetPubSubArgs("pubsub", "demo"));
+    }
 
     [Fact]
     public void No_builder_includes_no_color_because_the_runner_appends_it()
@@ -165,7 +168,8 @@ public class CommandArgumentTests
         (nameof(Commands.BuildCreateComponentArgs), Commands.BuildCreateComponentArgs(Component, new() { Project = "demo" })),
         (nameof(Commands.BuildCreatePubSubArgs), Commands.BuildCreatePubSubArgs("ps", new() { Project = "demo" })),
         (nameof(Commands.BuildCreateKvStoreArgs), Commands.BuildCreateKvStoreArgs("kv", new() { Project = "demo" })),
-        (nameof(Commands.BuildListKvStoresArgs), Commands.BuildListKvStoresArgs("demo")),
+        (nameof(Commands.BuildGetKvStoreArgs), Commands.BuildGetKvStoreArgs("kv", "demo")),
+        (nameof(Commands.BuildGetPubSubArgs), Commands.BuildGetPubSubArgs("ps", "demo")),
         (nameof(Commands.BuildCreateSubscriptionArgs), Commands.BuildCreateSubscriptionArgs("sub", new() { Project = "demo", Component = "ps", Topic = "t", Route = "/r" })),
     ];
 

@@ -266,7 +266,9 @@ public class PreflightTests
     [InlineData("LoadProjectDetails", "project get")]
     [InlineData("CreateApp", "app create")]
     [InlineData("CreatePubSub", "pubsub create")]
-    [InlineData("CheckKvStore", "kv list")]
+    [InlineData("CreateKvStore", "kv create")]
+    [InlineData("VerifyPubSub", "pubsub get")]
+    [InlineData("VerifyKvStore", "kv get")]
     [InlineData("CreateComponent", "component create")]
     [InlineData("CreateSubscription", "subscription create")]
     public async Task Cancelling_at_each_provisioning_step_is_quiet(string site, string hungCommand)
@@ -290,9 +292,11 @@ public class PreflightTests
                     project.Identities.Add(new ContainerResource("api"), new(IdentityKind.App, new()));
                     break;
                 case "CreatePubSub":
+                case "VerifyPubSub":
                     project.PubSubs.Add("ps", new() { Project = "demo" });
                     break;
-                case "CheckKvStore":
+                case "CreateKvStore":
+                case "VerifyKvStore":
                     project.KvStores.Add("kv", new() { Project = "demo" });
                     break;
                 case "CreateComponent":

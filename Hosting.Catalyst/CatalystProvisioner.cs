@@ -108,11 +108,12 @@ public interface CatalystProvisioner
     Task CreateKvStore(string name, KvStoreDescriptor options, CancellationToken cancellationToken);
 
     /// <summary>
-    ///     Checks to see if a KV store exists.
+    ///     Checks to see if a KV store exists (<c>kv get</c>, exit code only).
     /// </summary>
-    /// <param name="name"></param>
-    /// <param name="projectName"></param>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
-    Task<bool> CheckKvStoreExists(string name, string projectName, CancellationToken cancellationToken);
+    Task<bool> KvStoreExists(string name, string project, CancellationToken ct);
+
+    /// <summary>
+    ///     Checks to see if a pub/sub broker exists (<c>pubsub get</c>, exit code only).
+    /// </summary>
+    Task<bool> PubSubExists(string name, string project, CancellationToken ct);
 }

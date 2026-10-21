@@ -358,10 +358,14 @@ internal static class Commands
         result.EnsureSuccess(arguments);
     }
 
-    internal static string[] BuildListKvStoresArgs(string projectName)
-        => ["kv", "list", "--output", "json", "--project", projectName];
+    internal static string[] BuildGetKvStoreArgs(string kvStoreName, string projectName)
+        => ["kv", "get", kvStoreName, "--project", projectName];
 
-    public static async Task<bool> CheckKvStoreExists(
+    internal static string[] BuildGetPubSubArgs(string pubsubName, string projectName)
+        => ["pubsub", "get", pubsubName, "--project", projectName];
+
+    /// <summary>Whether the KV store exists, by the exit code of <c>kv get</c> alone (no output parsing).</summary>
+    public static async Task<bool> KvStoreExists(
         string kvStoreName,
         string projectName,
         CancellationToken cancellationToken = default
@@ -372,18 +376,24 @@ internal static class Commands
             throw new ArgumentException("KV Store name required", nameof(kvStoreName));
         }
 
-        var arguments = BuildListKvStoresArgs(projectName);
-        var result = await ProcessRunner.RunAsync(arguments, ReadTimeout, cancellationToken);
+        var result = await ProcessRunner.RunAsync(BuildGetKvStoreArgs(kvStoreName, projectName), ReadTimeout, cancellationToken);
+        return result.ExitCode == 0;
+    }
 
-        result.EnsureSuccess(arguments);
-
-        return ParseJson(result, arguments, json =>
+    /// <summary>Whether the pub/sub broker exists, by the exit code of <c>pubsub get</c> alone (no output parsing).</summary>
+    public static async Task<bool> PubSubExists(
+        string pubsubName,
+        string projectName,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (string.IsNullOrWhiteSpace(pubsubName))
         {
-            using var document = JsonDocument.Parse(json);
-            return document.RootElement.GetProperty("items")
-                .EnumerateArray()
-                .Any((kv) => kv.GetProperty("metadata").GetProperty("name").GetString() == kvStoreName);
-        });
+            throw new ArgumentException("Pub/Sub broker name required", nameof(pubsubName));
+        }
+
+        var result = await ProcessRunner.RunAsync(BuildGetPubSubArgs(pubsubName, projectName), ReadTimeout, cancellationToken);
+        return result.ExitCode == 0;
     }
 
     /// <summary>

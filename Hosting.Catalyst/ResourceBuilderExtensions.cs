@@ -15,7 +15,7 @@ namespace Diagrid.Aspire.Hosting.Catalyst;
 
 public static class ResourceBuilderExtensions
 {
-    public const string SampleKvName = "kvstore";
+    public const string SampleKvName = "statestore";
     public const string SamplePubsubName = "pubsub";
     
     /// <summary>
@@ -303,15 +303,8 @@ public static class ResourceBuilderExtensions
     /// <returns></returns>
     public static IResourceBuilder<CatalystProject> WithCatalystPubSub(this IResourceBuilder<CatalystProject> catalystProject)
     {
-        return catalystProject
-            .WithCatalystPubSub(SamplePubsubName)
-            .WithComponent(SamplePubsubName, new DiagridPubSub
-            {
-                Metadata = new()
-                {
-                    PubSubName = SamplePubsubName,
-                },
-            });
+        // `pubsub create` creates the fronting component itself; registering one here would conflict.
+        return catalystProject.WithCatalystPubSub(SamplePubsubName);
     }
     
     /// <summary>
@@ -356,16 +349,10 @@ public static class ResourceBuilderExtensions
     /// <returns></returns>
     public static IResourceBuilder<CatalystProject> WithCatalystKvStore(this IResourceBuilder<CatalystProject> catalystProject)
     {
-        return catalystProject
-            .WithCatalystKvStore(SampleKvName)
-            .WithComponent(SampleKvName, new DiagridStateStore
-            {
-                Metadata = new()
-                {
-                    State = SampleKvName,
-                    ActorStateStore = true,
-                },
-            });
+        // `kv create` creates the fronting component itself; registering one here would conflict. It does not
+        // claim actorStateStore either (the managed workflow state store does); set it explicitly through
+        // DiagridStateStore.ActorStateStore if needed.
+        return catalystProject.WithCatalystKvStore(SampleKvName);
     }
     
     /// <summary>

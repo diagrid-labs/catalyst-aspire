@@ -145,6 +145,13 @@ public class CliCatalystProvisioner : CatalystProvisioner
             Project = options.Project,
             Scopes = options.Scopes,
         }, cancellationToken);
+
+        // `pubsub create` also creates the fronting component, and is refused when a component of that name
+        // already exists. --ignore-if-exists swallows that, so confirm the broker is really there.
+        if (!await PubSubExists(name, options.Project, cancellationToken))
+        {
+            throw CollisionException("pubsub", name, options.Project);
+        }
     }
 
     public async Task CreateKvStore(string name, KvStoreDescriptor options, CancellationToken cancellationToken)
@@ -154,10 +161,31 @@ public class CliCatalystProvisioner : CatalystProvisioner
             Project = options.Project,
             Scopes = options.Scopes,
         }, cancellationToken);
+
+        // `kv create` also creates the fronting component, and is refused when a component of that name
+        // already exists. --ignore-if-exists swallows that, so confirm the store is really there.
+        if (!await KvStoreExists(name, options.Project, cancellationToken))
+        {
+            throw CollisionException("kv", name, options.Project);
+        }
     }
 
-    public async Task<bool> CheckKvStoreExists(string name, string projectName, CancellationToken cancellationToken)
+    public Task<bool> KvStoreExists(string name, string project, CancellationToken ct)
+        => Commands.KvStoreExists(name, project, ct);
+
+    public Task<bool> PubSubExists(string name, string project, CancellationToken ct)
+        => Commands.PubSubExists(name, project, ct);
+
+    private static CatalystCliException CollisionException(string noun, string name, string project)
     {
-        return await Commands.CheckKvStoreExists(name, projectName, cancellationToken);
+        var kind = noun == "kv" ? "KV store" : "pub/sub broker";
+        return new CatalystCliException(
+            [noun, "get", name, "--project", project],
+            0,
+            string.Empty,
+            $"'diagrid {noun} create {name}' reported success but the {kind} '{name}' does not exist in project '{project}'. "
+                + $"A component named '{name}' most likely already exists in that project, which blocks the {kind} "
+                + $"(creating one also creates a component of the same name). Rename the {kind} in the AppHost, "
+                + $"or remove the existing component '{name}' from the project, then run again.");
     }
 }
