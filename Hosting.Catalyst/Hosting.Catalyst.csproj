@@ -21,6 +21,7 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="Hosting.Catalyst.IntegrationTests" />
+        <InternalsVisibleTo Include="Hosting.Catalyst.Tests" />
     </ItemGroup>
 
     <ItemGroup>

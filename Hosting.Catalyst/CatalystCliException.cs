@@ -26,9 +26,16 @@ public sealed class CatalystCliException : Exception
 
     public string StdErr { get; }
 
-    private static string BuildMessage(IReadOnlyList<string> arguments, int exitCode, string stdErr)
+    internal static string BuildMessage(
+        IReadOnlyList<string> arguments,
+        int exitCode,
+        string stdErr,
+        bool outputTruncated = false
+    )
     {
         var message = $"'diagrid {string.Join(" ", arguments)}' failed with exit code {exitCode}.";
-        return string.IsNullOrWhiteSpace(stdErr) ? message : $"{message} {stdErr.Trim()}";
+        if (!string.IsNullOrWhiteSpace(stdErr)) message += $" {stdErr.Trim()}";
+        if (outputTruncated) message += " (The CLI's output was cut off, so the error text above may be incomplete.)";
+        return message;
     }
 }

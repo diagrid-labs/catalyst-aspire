@@ -41,9 +41,9 @@ internal static class Commands
         AddOptionalArgument(arguments, "--project", options.Project);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
-        var (output, _, exitCode, _) = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
+        var result = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
 
-        CheckExitCode(exitCode, output);
+        result.EnsureSuccess(arguments);
     }
     
     public static async Task UseCatalyst(CancellationToken cancellationToken)
@@ -86,9 +86,9 @@ internal static class Commands
         AddFlagArgument(arguments, "--use", options.Use);
         AddFlagArgument(arguments, "--disable-app-tunnels", options.DisableAppTunnels);
 
-        var (output, _, exitCode, _) = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
+        var result = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
 
-        CheckExitCode(exitCode, output);
+        result.EnsureSuccess(arguments);
     }
 
     public static async Task UseProject(string projectName, CancellationToken cancellationToken)
@@ -115,11 +115,11 @@ internal static class Commands
             "json",
         };
 
-        var (output, _, exitCode, _) = await ProcessRunner.RunAsync(arguments, ReadTimeout, cancellationToken);
+        var result = await ProcessRunner.RunAsync(arguments, ReadTimeout, cancellationToken);
 
-        CheckExitCode(exitCode, output);
+        result.EnsureSuccess(arguments);
 
-        var projectDetails = JsonSerializer.Deserialize<CliProjectDetails>(output);
+        var projectDetails = ParseJson(result, arguments, json => JsonSerializer.Deserialize<CliProjectDetails>(json));
 
         return projectDetails ?? throw new InvalidOperationException("Failed to deserialize project details");
     }
@@ -135,11 +135,11 @@ internal static class Commands
             "json",
         };
 
-        var (output, _, exitCode, _) = await ProcessRunner.RunAsync(arguments, ReadTimeout, cancellationToken);
+        var result = await ProcessRunner.RunAsync(arguments, ReadTimeout, cancellationToken);
 
-        CheckExitCode(exitCode, output);
+        result.EnsureSuccess(arguments);
 
-        var appIdentityDetails = JsonSerializer.Deserialize<CliAppDetails>(output);
+        var appIdentityDetails = ParseJson(result, arguments, json => JsonSerializer.Deserialize<CliAppDetails>(json));
 
         return appIdentityDetails ?? throw new InvalidOperationException("Failed to deserialize app identity details");
     }
@@ -172,9 +172,9 @@ internal static class Commands
         AddOptionalIntArgument(arguments, "--app-channel-timeout-seconds", options.AppChannelTimeoutSeconds);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
-        var (output, _, exitCode, _) = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
+        var result = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
 
-        CheckExitCode(exitCode, output);
+        result.EnsureSuccess(arguments);
     }
 
     public static async Task CreateComponent(
@@ -223,9 +223,9 @@ internal static class Commands
         AddOptionalArgument(arguments, "--project", options.Project);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
-        var (output, _, exitCode, _) = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
+        var result = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
 
-        CheckExitCode(exitCode, output);
+        result.EnsureSuccess(arguments);
     }
 
     public static async Task CreatePubSub(
@@ -250,9 +250,9 @@ internal static class Commands
         AddScopesArgument(arguments, options.Scopes);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
-        var (output, _, exitCode, _) = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
+        var result = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
 
-        CheckExitCode(exitCode, output);
+        result.EnsureSuccess(arguments);
     }
 
     public static async Task CreateKvStore(
@@ -277,9 +277,9 @@ internal static class Commands
         AddScopesArgument(arguments, options.Scopes);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
-        var (output, _, exitCode, _) = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
+        var result = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
 
-        CheckExitCode(exitCode, output);
+        result.EnsureSuccess(arguments);
     }
 
     public static async Task<bool> CheckKvStoreExists(
@@ -304,23 +304,38 @@ internal static class Commands
         arguments.Add("--project");
         arguments.Add(projectName);
 
-        var (output, _, exitCode, _) = await ProcessRunner.RunAsync(arguments, ReadTimeout, cancellationToken);
+        var result = await ProcessRunner.RunAsync(arguments, ReadTimeout, cancellationToken);
 
-        CheckExitCode(exitCode, output);
+        result.EnsureSuccess(arguments);
 
-        using var document = JsonDocument.Parse(output);
-        var root = document.RootElement;
-
-        return root.GetProperty("items")
-            .EnumerateArray()
-            .Any((kv) => kv.GetProperty("metadata").GetProperty("name").GetString() == kvStoreName);
+        return ParseJson(result, arguments, json =>
+        {
+            using var document = JsonDocument.Parse(json);
+            return document.RootElement.GetProperty("items")
+                .EnumerateArray()
+                .Any((kv) => kv.GetProperty("metadata").GetProperty("name").GetString() == kvStoreName);
+        });
     }
 
-    private static void CheckExitCode(int exitCode, string output)
+    /// <summary>
+    /// Parses stdout, reporting a cut-off response as truncation rather than a bare JSON error. Truncation is
+    /// reported only when the runner flagged it; an unflagged parse failure is not proof the output was whole.
+    /// </summary>
+    private static T ParseJson<T>(CliResult result, IReadOnlyList<string> arguments, Func<string, T> parse)
     {
-        if (exitCode != 0 && ! output.Contains("already exists"))
+        try
         {
-            throw new InvalidOperationException(output);
+            return parse(result.StdOut);
+        }
+        catch (JsonException ex) when (result.OutputTruncated)
+        {
+            throw new CatalystCliException(
+                arguments,
+                result.ExitCode,
+                StdErrCleaner.Clean(result.StdErr),
+                $"'diagrid {string.Join(" ", arguments)}' output was cut off before it could be read as JSON "
+                    + "(a background process kept the CLI's output pipes open).",
+                ex);
         }
     }
 
