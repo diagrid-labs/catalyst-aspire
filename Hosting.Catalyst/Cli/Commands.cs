@@ -59,6 +59,42 @@ internal static class Commands
         await ProcessRunner.RunAsync(BuildUseCatalystArgs(), ReadTimeout, cancellationToken);
     }
 
+    // 'diagrid version' has no --output flag (it is rejected as unknown); its plain output is parsed by key.
+    internal static string[] BuildVersionArgs() => ["version"];
+
+    /// <summary>Fails with an install message when the CLI is missing, and an upgrade message when it is below the floor.</summary>
+    public static async Task EnsureSupportedVersion(CancellationToken cancellationToken)
+    {
+        var arguments = BuildVersionArgs();
+        CliResult result;
+
+        try
+        {
+            result = await ProcessRunner.RunAsync(arguments, ReadTimeout, cancellationToken);
+        }
+        catch (CatalystCliException ex) when (ex.InnerException is System.ComponentModel.Win32Exception missing)
+        {
+            throw CatalystCli.NotInstalled(arguments, missing);
+        }
+
+        result.EnsureSuccess(arguments);
+        CatalystCli.EnsureSupportedVersion(arguments, result.StdOut);
+    }
+
+    internal static string[] BuildWhoamiArgs() => ["whoami"];
+
+    /// <summary>Fails with a 'diagrid login' message when the CLI has no signed-in user.</summary>
+    public static async Task EnsureLoggedIn(CancellationToken cancellationToken)
+    {
+        var arguments = BuildWhoamiArgs();
+        var result = await ProcessRunner.RunAsync(arguments, ReadTimeout, cancellationToken);
+
+        if (result.ExitCode != 0)
+        {
+            throw CatalystCli.NotLoggedIn(arguments, result.ExitCode, StdErrCleaner.Clean(result.StdErr));
+        }
+    }
+
     internal static string[] BuildCreateProjectArgs(string projectName, CreateProjectOptions? options = null)
     {
         var arguments = new List<string> { "project", "create", projectName };

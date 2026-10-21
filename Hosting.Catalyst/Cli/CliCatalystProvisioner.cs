@@ -11,8 +11,18 @@ public class CliCatalystProvisioner : CatalystProvisioner
 {
     public async Task Init(CancellationToken cancellationToken = default)
     {
-        // todo: Need to not have to do this.
-        await Commands.UseCatalyst(cancellationToken);
+        // Preflight, in this order: nothing below is worth running against a missing, too-old or signed-out CLI.
+        await Commands.EnsureSupportedVersion(cancellationToken);
+        await Commands.EnsureLoggedIn(cancellationToken);
+
+        // Best-effort courtesy: every command passes --project explicitly, so nothing depends on this succeeding.
+        try
+        {
+            await Commands.UseCatalyst(cancellationToken);
+        }
+        catch (CatalystCliException)
+        {
+        }
     }
 
     public async Task CreateSubscription(string projectName, SubscriptionDescriptor descriptor, CancellationToken cancellationToken)
@@ -47,7 +57,14 @@ public class CliCatalystProvisioner : CatalystProvisioner
 
     public async Task UseProject(string projectName, CancellationToken cancellationToken)
     {
-        await Commands.UseProject(projectName, cancellationToken);
+        // Best-effort courtesy: every command passes --project explicitly, so nothing depends on this succeeding.
+        try
+        {
+            await Commands.UseProject(projectName, cancellationToken);
+        }
+        catch (CatalystCliException)
+        {
+        }
     }
 
     public async Task<ProjectDetails?> TryGetProjectDetails(string projectName, CancellationToken cancellationToken)

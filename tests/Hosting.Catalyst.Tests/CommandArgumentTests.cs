@@ -153,6 +153,8 @@ public class CommandArgumentTests
     private static (string Name, string[] Args)[] AllBuilderOutputs() =>
     [
         (nameof(Commands.BuildUseCatalystArgs), Commands.BuildUseCatalystArgs()),
+        (nameof(Commands.BuildVersionArgs), Commands.BuildVersionArgs()),
+        (nameof(Commands.BuildWhoamiArgs), Commands.BuildWhoamiArgs()),
         (nameof(Commands.BuildUseProjectArgs), Commands.BuildUseProjectArgs("demo")),
         (nameof(Commands.BuildCreateProjectArgs), Commands.BuildCreateProjectArgs("demo", new())),
         (nameof(Commands.BuildGetProjectArgs), Commands.BuildGetProjectArgs("demo")),

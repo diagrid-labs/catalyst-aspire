@@ -14,6 +14,7 @@ internal class CatalystLifecycleHandler(
     CatalystProvisioner provisioner
 )
 {
+    internal const string CheckingCliState = "Checking Diagrid CLI";
     internal const string WaitingForProjectState = "Waiting for project";
     internal static readonly TimeSpan ProjectReadyTimeout = TimeSpan.FromMinutes(5);
 
@@ -48,9 +49,19 @@ internal class CatalystLifecycleHandler(
 
     private async Task InitializeProvisionerAsync(CancellationToken cancellationToken)
     {
+        await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
+        {
+            State = new(CheckingCliState, KnownResourceStateStyles.Info),
+        });
+
         try
         {
             await provisioner.Init(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Ctrl-C is not a failure: no error, no stack trace, no FailedToStart.
+            throw;
         }
         catch (Exception ex)
         {
@@ -76,6 +87,11 @@ internal class CatalystLifecycleHandler(
         {
             await provisioner.CreateProject(catalystProject.ProjectName, catalystProject.ProjectDescriptor, cancellationToken);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Ctrl-C is not a failure: no error, no stack trace, no FailedToStart.
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, ex.Message);
@@ -99,6 +115,11 @@ internal class CatalystLifecycleHandler(
         try
         {
             await provisioner.UseProject(catalystProject.ProjectName, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Ctrl-C is not a failure: no error, no stack trace, no FailedToStart.
+            throw;
         }
         catch (Exception ex)
         {
@@ -134,6 +155,11 @@ internal class CatalystLifecycleHandler(
             catalystProject.HttpEndpoint.SetResult(projectDetails.HttpEndpoint.ToString());
             catalystProject.GrpcEndpoint.SetResult(projectDetails.GrpcEndpoint.ToString());
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Ctrl-C is not a failure: no error, no stack trace, no FailedToStart.
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, ex.Message);
@@ -162,6 +188,11 @@ internal class CatalystLifecycleHandler(
                 var app = await provisioner.GetAppDetails(pair.Key.Name, catalystProject.ProjectName, cancellationToken);
 
                 pair.Value.Details.SetResult(app);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Ctrl-C is not a failure: no error, no stack trace, no FailedToStart.
+                throw;
             }
             catch (Exception ex)
             {
@@ -193,6 +224,11 @@ internal class CatalystLifecycleHandler(
             {
                 await provisioner.CreatePubSub(pair.Key, pair.Value, cancellationToken);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Ctrl-C is not a failure: no error, no stack trace, no FailedToStart.
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, ex.Message);
@@ -213,6 +249,11 @@ internal class CatalystLifecycleHandler(
                 if (await provisioner.CheckKvStoreExists(pair.Key, catalystProject.ProjectName, originalCancellationToken)) continue;
 
                 await provisioner.CreateKvStore(pair.Key, pair.Value, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Ctrl-C is not a failure: no error, no stack trace, no FailedToStart.
+                throw;
             }
             catch (Exception ex)
             {
@@ -241,6 +282,11 @@ internal class CatalystLifecycleHandler(
             {
                 await provisioner.CreateComponent(pair.Value, catalystProject.ProjectName, cancellationToken);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Ctrl-C is not a failure: no error, no stack trace, no FailedToStart.
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, ex.Message);
@@ -267,6 +313,11 @@ internal class CatalystLifecycleHandler(
             try
             {
                 await provisioner.CreateSubscription(catalystProject.ProjectName, pair.Value, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Ctrl-C is not a failure: no error, no stack trace, no FailedToStart.
+                throw;
             }
             catch (Exception ex)
             {
