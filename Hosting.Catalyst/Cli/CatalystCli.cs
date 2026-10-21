@@ -10,10 +10,10 @@ internal static class CatalystCli
     /// <summary>
     /// A LOWER BOUND on the CLI release, not a verified-compatible list. It is empirically derived, not
     /// spec-derived: the CLI changelog documents no introduction version for <c>--ignore-if-exists</c>.
-    /// 1.85.0 is the oldest version observed to carry every command and flag used here (<c>app create</c>,
-    /// <c>agent create</c>, <c>--ignore-if-exists</c> on <c>project create</c> and <c>app create</c>,
-    /// <c>dev run --id</c>, <c>--label</c> / <c>--annotation</c> on <c>app create</c>). The probe was done once and is
-    /// not reproducible now (the local CLI has since been upgraded), so this is not a claim of current verification.
+    /// 1.85.0 comes from the project ledger as the version that carried every command and flag used here
+    /// (<c>app create</c>, <c>agent create</c>, <c>--ignore-if-exists</c> on <c>project create</c> and <c>app create</c>,
+    /// <c>dev run --id</c>, <c>--label</c> / <c>--annotation</c> on <c>app create</c>). It was NOT re-measured here (the
+    /// local CLI has since been upgraded), and nothing is known about older releases either way.
     /// The floor is deliberately permissive: a CLI that is too old but slips under it fails loudly at the first
     /// create with the CLI's own "unknown flag" error, rather than being silently rejected here.
     /// Note: <c>diagrid version</c> has no <c>--output json</c> (unknown flag), so its plain output is read instead.
@@ -48,13 +48,13 @@ internal static class CatalystCli
             0,
             string.Empty,
             $"The diagrid CLI is version {found}, but this integration needs {MinimumVersion} or newer. "
-                + "Older releases do not support '--ignore-if-exists' on 'diagrid project create' and 'diagrid app create', "
-                + "which the integration relies on so that restarting your AppHost does not fail on resources that already exist. "
+                + "It was not tested against older releases, and commands it relies on, such as "
+                + "'diagrid project create --ignore-if-exists' and 'diagrid app create --ignore-if-exists', may be unavailable there. "
                 + $"Upgrade the diagrid CLI ({DocsUrl}) and try again.");
 
     /// <summary>
     /// Reads the version from <c>diagrid version</c> output. The command has no JSON mode (<c>--output</c> is an
-    /// unknown flag), but it prints a stable <c>Version: x.y.z</c> key/value line, which is read structurally by key.
+    /// unknown flag), but it prints a <c>Version: x.y.z</c> key/value line, which is read structurally by key.
     /// Returns null when no such line carries a parsable version. A pre-release or build suffix is ignored.
     /// </summary>
     internal static Version? ParseVersion(string stdOut, out string? text)

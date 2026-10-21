@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Aspire.Hosting.ApplicationModel;
 using Diagrid.Aspire.Hosting.Catalyst;
 using Diagrid.Aspire.Hosting.Catalyst.Cli;
+using Diagrid.Aspire.Hosting.Catalyst.Model;
 using FakeDiagrid;
 
 namespace Hosting.Catalyst.IntegrationTests;
@@ -41,24 +42,26 @@ public class PreflightTests
     [InlineData("1.109.0-rc.1")]
     [InlineData("2.0.0")]
     public void Versions_at_or_above_the_floor_pass(string version)
-        => CatalystCli.EnsureSupportedVersion(["version"], VersionOutput(version));
+        // True, not merely "did not throw": an unreadable version also does not throw, but returns false.
+        => Assert.True(CatalystCli.EnsureSupportedVersion(["version"], VersionOutput(version)));
 
     [Theory]
-    [InlineData("1.84.9", "1.84.9")]
-    [InlineData("1.80.0", "1.80.0")]
-    [InlineData("0.99.0", "0.99.0")]
-    [InlineData("1.9.0", "1.9.0")] // numeric, not lexical: 1.9 < 1.85
-    public void Versions_below_the_floor_are_refused_naming_both_versions_and_the_missing_capability(string version, string expectedInMessage)
+    [InlineData("1.84.9")]
+    [InlineData("1.80.0")]
+    [InlineData("0.99.0")]
+    [InlineData("1.9.0")] // numeric, not lexical: 1.9 < 1.85
+    public void Versions_below_the_floor_are_refused_naming_the_found_and_required_versions_and_the_capability(string version)
     {
         var ex = Assert.Throws<CatalystCliException>(() => CatalystCli.EnsureSupportedVersion(["version"], VersionOutput(version)));
 
-        Assert.Contains(expectedInMessage, ex.Message, StringComparison.Ordinal);
-        Assert.Contains(CatalystCli.MinimumVersion, ex.Message, StringComparison.Ordinal);
+        // The phrases, not bare substrings: swapping found and required would still contain both numbers.
+        Assert.Contains($"is version {version},", ex.Message, StringComparison.Ordinal);
+        Assert.Contains($"needs {CatalystCli.MinimumVersion} or newer", ex.Message, StringComparison.Ordinal);
         Assert.Contains("--ignore-if-exists", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void The_minimum_version_is_the_empirically_verified_floor()
+    public void The_floor_constant_changes_only_deliberately()
         => Assert.Equal("1.85.0", CatalystCli.MinimumVersion);
 
     [Theory]
@@ -147,8 +150,8 @@ public class PreflightTests
 
         var ex = await Assert.ThrowsAsync<CatalystCliException>(() => new CliCatalystProvisioner().Init(new CapturingLogger(), default));
 
-        Assert.Contains("1.80.0", ex.Message, StringComparison.Ordinal);
-        Assert.Contains(CatalystCli.MinimumVersion, ex.Message, StringComparison.Ordinal);
+        Assert.Contains("is version 1.80.0,", ex.Message, StringComparison.Ordinal);
+        Assert.Contains($"needs {CatalystCli.MinimumVersion} or newer", ex.Message, StringComparison.Ordinal);
         Assert.Contains("--ignore-if-exists", ex.Message, StringComparison.Ordinal);
         // A too-old CLI is refused before anything else is asked of it.
         Assert.Equal([["version", "--no-color"]], fake.Invocations);
@@ -238,39 +241,86 @@ public class PreflightTests
         Assert.DoesNotContain(fake.Invocations, i => i is ["project", ..]);
     }
 
-    // Ctrl-C is not a failure: no FailedToStart (the same catch that publishes it also logs the error and the stack trace).
+    // The warning has to reach the dashboard console: this is the test that fails if the handler hands Init a
+    // different logger (the reason Init takes one at all).
     [Fact(Timeout = 60_000)]
-    public async Task Cancelling_during_preflight_is_quiet()
+    public async Task An_unparseable_version_warning_reaches_the_resource_console()
     {
         using var fake = new FakeDiagridFixture();
-        fake.SetScenario(new Scenario { Responses = [new() { ArgsMatch = "version", SleepMilliseconds = 60_000 }] });
-        var (_, handler, states) = HandlerHarness.Build();
-        using var cts = new CancellationTokenSource();
+        fake.SetScenario(new Scenario { Responses = [new() { ArgsMatch = "version", StdOut = "Version: banana\n" }, Whoami(), ProjectGetReady(), AnythingElseSucceeds()] });
+        var (_, handler, _, logs) = HandlerHarness.BuildWithLogs();
 
-        var provisioning = handler.ProvisionCatalyst(cts.Token);
-        await states.WaitFor(CatalystLifecycleHandler.CheckingCliState, TimeSpan.FromSeconds(20));
-        cts.Cancel();
+        await handler.ProvisionCatalyst(default);
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => provisioning);
-        await states.Drain();
-        Assert.DoesNotContain(KnownResourceStates.FailedToStart, states.Snapshot());
+        var lines = await logs.Collect();
+        Assert.Contains(lines, l => l.Content.Contains("no recognisable 'Version:' line", StringComparison.Ordinal));
     }
 
-    [Fact(Timeout = 60_000)]
-    public async Task Cancelling_while_waiting_for_the_project_is_quiet()
+    // Every site that catches in ProvisionCatalyst. Each case hangs the fake on that site's own command, waits until
+    // that command has demonstrably started, then cancels. Ctrl-C is not a failure: no FailedToStart, and nothing in
+    // the console (the generic catch also logs the error and its stack trace, which was the actual complaint).
+    [Theory(Timeout = 120_000)]
+    [InlineData("Init", "version")]
+    [InlineData("CreateProject", "project create")]
+    [InlineData("SelectProject", "project use")]
+    [InlineData("LoadProjectDetails", "project get")]
+    [InlineData("CreateApp", "app create")]
+    [InlineData("CreatePubSub", "pubsub create")]
+    [InlineData("CheckKvStore", "kv list")]
+    [InlineData("CreateComponent", "component create")]
+    [InlineData("CreateSubscription", "subscription create")]
+    public async Task Cancelling_at_each_provisioning_step_is_quiet(string site, string hungCommand)
     {
         using var fake = new FakeDiagridFixture();
-        fake.SetScenario(new Scenario { Responses = [Version("1.85.0"), Whoami(), ProjectGetPending(), AnythingElseSucceeds()] });
-        var (_, handler, states) = HandlerHarness.Build();
+        fake.SetScenario(new Scenario
+        {
+            Responses =
+            [
+                new() { ArgsMatch = hungCommand, SleepMilliseconds = 60_000 },
+                .. HandlerHarness.PreflightPasses(),
+                ProjectGetReady(),
+                AnythingElseSucceeds(),
+            ],
+        });
+        var (_, handler, states, logs) = HandlerHarness.BuildWithLogs(project =>
+        {
+            switch (site)
+            {
+                case "CreateApp":
+                    project.Identities.Add(new ContainerResource("api"), new(IdentityKind.App, new()));
+                    break;
+                case "CreatePubSub":
+                    project.PubSubs.Add("ps", new() { Project = "demo" });
+                    break;
+                case "CheckKvStore":
+                    project.KvStores.Add("kv", new() { Project = "demo" });
+                    break;
+                case "CreateComponent":
+                    project.Components.Add("c", new() { Name = "c", Type = "state.in-memory", Metadata = new Dictionary<string, object?> { ["k"] = "v" } });
+                    break;
+                case "CreateSubscription":
+                    project.Subscriptions.Add("s", new() { Name = "s", Component = "ps", Topic = "t", Route = "/r" });
+                    break;
+            }
+        });
         using var cts = new CancellationTokenSource();
 
         var provisioning = handler.ProvisionCatalyst(cts.Token);
-        await states.WaitFor(CatalystLifecycleHandler.WaitingForProjectState, TimeSpan.FromSeconds(20));
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        while (!fake.Invocations.Any(i => string.Join(' ', i).StartsWith(hungCommand, StringComparison.Ordinal)))
+        {
+            Assert.True(started.Elapsed < TimeSpan.FromSeconds(30), $"'{hungCommand}' never ran; the {site} site was not reached");
+            await Task.Delay(25);
+        }
+
         cts.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => provisioning);
         await states.Drain();
         Assert.DoesNotContain(KnownResourceStates.FailedToStart, states.Snapshot());
+        var lines = await logs.Collect();
+        Assert.DoesNotContain(lines, l => l.IsErrorMessage);
+        Assert.DoesNotContain(lines, l => l.Content.Contains("OperationCanceledException", StringComparison.Ordinal));
     }
 
     private sealed class CapturingLogger : Microsoft.Extensions.Logging.ILogger

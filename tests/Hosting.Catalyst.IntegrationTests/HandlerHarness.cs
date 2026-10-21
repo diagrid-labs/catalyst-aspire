@@ -13,13 +13,42 @@ internal static class HandlerHarness
     /// <summary>Scenario responses that let the CLI preflight (version, then whoami) pass, for tests of later steps.</summary>
     internal static FakeDiagrid.ScenarioResponse[] PreflightPasses() =>
     [
-        new() { ArgsMatch = "version", StdOut = "Version: 1.85.0\n" },
+        new() { ArgsMatch = "version", StdOut = $"Version: {CatalystCli.MinimumVersion}\n" },
         new() { ArgsMatch = "whoami", StdOut = "marc@example.com\n" },
     ];
 
     internal static (CatalystProject Project, CatalystLifecycleHandler Handler, StateRecorder States) Build()
     {
+        var (project, handler, states, _) = BuildWithLogs();
+        return (project, handler, states);
+    }
+
+    /// <summary>What the dashboard console shows for the project resource, read through the real log service.</summary>
+    internal sealed class LogRecorder(ResourceLoggerService service, IResource resource)
+    {
+        /// <summary>Everything logged so far (the service replays its backlog to a new watcher).</summary>
+        public async Task<IReadOnlyList<LogLine>> Collect()
+        {
+            var lines = new List<LogLine>();
+            using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(400));
+            try
+            {
+                await foreach (var batch in service.WatchAsync(resource).WithCancellation(cts.Token))
+                {
+                    lines.AddRange(batch);
+                }
+            }
+            catch (OperationCanceledException) { }
+
+            return lines;
+        }
+    }
+
+    internal static (CatalystProject Project, CatalystLifecycleHandler Handler, StateRecorder States, LogRecorder Logs) BuildWithLogs(
+        Action<CatalystProject>? configure = null)
+    {
         var project = new CatalystProject { ProjectName = "demo" };
+        configure?.Invoke(project);
         var loggerService = new ResourceLoggerService();
         var notifications = new ResourceNotificationService(
             NullLogger<ResourceNotificationService>.Instance,
@@ -28,7 +57,7 @@ internal static class HandlerHarness
             loggerService);
         var handler = new CatalystLifecycleHandler(project, loggerService, notifications, new CliCatalystProvisioner());
 
-        return (project, handler, new StateRecorder(notifications));
+        return (project, handler, new StateRecorder(notifications), new LogRecorder(loggerService, project));
     }
 
     /// <summary>Records every state text published for the resource, via the real notification surface.</summary>
