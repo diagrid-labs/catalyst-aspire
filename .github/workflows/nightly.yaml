@@ -160,7 +160,9 @@ jobs:
         if: always() && steps.gate.outputs.enabled == 'true'
         run: |
           iso="$RUNNER_TEMP/catalyst-home"
-          rm -rf "$iso"
+          # Observed locally: the CLI also writes .diagrid/config.json (an org id) into the CURRENT directory, so delete
+          # the workspace copy too; the proof below then covers whichever location the credential used.
+          rm -rf "$iso" "$GITHUB_WORKSPACE/.diagrid"
           mkdir -p "$iso/.config"
           if HOME="$iso" XDG_CONFIG_HOME="$iso/.config" diagrid project list --output json --no-color < /dev/null > /dev/null 2>&1; then
             echo "::error::still authenticated from the isolated HOME after deleting it"
