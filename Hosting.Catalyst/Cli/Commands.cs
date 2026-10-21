@@ -12,7 +12,14 @@ namespace Diagrid.Aspire.Hosting.Catalyst.Cli;
 
 internal static class Commands
 {
-    private static readonly TimeSpan CommandTimeout = TimeSpan.FromMinutes(5);
+    /// <summary>Read and short calls (get, list, use): a hang here is a dead dashboard, so fail fast.</summary>
+    internal static readonly TimeSpan ReadTimeout = TimeSpan.FromMinutes(2);
+
+    /// <summary>
+    /// Creates that provision remote infrastructure (usually with --wait). Killing one mid-provision leaves a
+    /// half-created resource, so allow a slow region time to finish.
+    /// </summary>
+    internal static readonly TimeSpan CreateTimeout = TimeSpan.FromMinutes(15);
 
     public static async Task CreateSubscription(
         string name,
@@ -34,7 +41,7 @@ internal static class Commands
         AddOptionalArgument(arguments, "--project", options.Project);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
-        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
     }
@@ -48,7 +55,7 @@ internal static class Commands
             "catalyst",
         };
 
-        await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
+        await ProcessRunner.RunAsync(arguments, ReadTimeout, cancellationToken);
     }
 
     public static async Task CreateProject(
@@ -79,7 +86,7 @@ internal static class Commands
         AddFlagArgument(arguments, "--use", options.Use);
         AddFlagArgument(arguments, "--disable-app-tunnels", options.DisableAppTunnels);
 
-        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
     }
@@ -93,7 +100,7 @@ internal static class Commands
             projectName,
         };
 
-        await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
+        await ProcessRunner.RunAsync(arguments, ReadTimeout, cancellationToken);
     }
 
     public static async Task<CliProjectDetails> GetProjectDetails(string projectName,
@@ -108,7 +115,7 @@ internal static class Commands
             "json",
         };
 
-        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, ReadTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
 
@@ -128,7 +135,7 @@ internal static class Commands
             "json",
         };
 
-        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, ReadTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
 
@@ -165,7 +172,7 @@ internal static class Commands
         AddOptionalIntArgument(arguments, "--app-channel-timeout-seconds", options.AppChannelTimeoutSeconds);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
-        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
     }
@@ -216,7 +223,7 @@ internal static class Commands
         AddOptionalArgument(arguments, "--project", options.Project);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
-        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
     }
@@ -243,7 +250,7 @@ internal static class Commands
         AddScopesArgument(arguments, options.Scopes);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
-        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
     }
@@ -270,7 +277,7 @@ internal static class Commands
         AddScopesArgument(arguments, options.Scopes);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
-        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
     }
@@ -297,7 +304,7 @@ internal static class Commands
         arguments.Add("--project");
         arguments.Add(projectName);
 
-        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, ReadTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
 

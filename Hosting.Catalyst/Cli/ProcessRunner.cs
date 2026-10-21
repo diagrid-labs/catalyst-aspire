@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Diagnostics;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,12 +17,20 @@ internal static class ProcessRunner
     /// <c>--no-color</c> appended and <c>NO_COLOR=1</c> set. Stdin is redirected and closed immediately so a CLI
     /// that prompts sees EOF instead of waiting forever. Both output streams are drained while the process runs.
     /// </summary>
+    /// <summary>
+    /// How long to keep waiting for the output streams to reach EOF once the process has exited or been killed.
+    /// A background child that inherited the pipes would otherwise keep them open indefinitely.
+    /// </summary>
+    internal static readonly TimeSpan DefaultDrainGrace = TimeSpan.FromSeconds(5);
+
     public static async Task<CliResult> RunAsync(
         IReadOnlyList<string> arguments,
         TimeSpan timeout,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        TimeSpan? drainGrace = null
     )
     {
+        var grace = drainGrace ?? DefaultDrainGrace;
         var startInfo = new ProcessStartInfo
         {
             FileName = "diagrid",
@@ -70,8 +79,8 @@ internal static class ProcessRunner
             }
 
             // Start draining both streams before waiting: a full pipe buffer would otherwise block the child.
-            var stdOutTask = process.StandardOutput.ReadToEndAsync();
-            var stdErrTask = process.StandardError.ReadToEndAsync();
+            var stdOutPump = new StreamPump(process.StandardOutput);
+            var stdErrPump = new StreamPump(process.StandardError);
 
             using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutSource.CancelAfter(timeout);
@@ -93,13 +102,14 @@ internal static class ProcessRunner
                 throw new CatalystCliException(
                     arguments,
                     -1,
-                    await ReadQuietly(stdErrTask),
+                    await stdErrPump.WaitAsync(grace),
                     $"'diagrid {string.Join(" ", arguments)}' timed out after {stopwatch.Elapsed.TotalSeconds:0.#}s (limit {timeout.TotalSeconds:0.#}s)."
                 );
             }
 
-            var stdOut = await stdOutTask;
-            var stdErr = await stdErrTask;
+            // Bounded: if a background child still holds a pipe open, accept the partial output.
+            var stdOut = await stdOutPump.WaitAsync(grace);
+            var stdErr = await stdErrPump.WaitAsync(grace);
 
             return new CliResult(stdOut, stdErr, process.ExitCode);
         }
@@ -111,25 +121,52 @@ internal static class ProcessRunner
         {
             process.Kill(entireProcessTree: true);
         }
-        catch (InvalidOperationException)
+        catch (Exception)
         {
-            // Already exited.
-        }
-        catch (Win32Exception)
-        {
-            // Could not kill (access denied or exiting); nothing more we can do.
+            // Best effort: already exited, access denied, or a partial tree kill (AggregateException).
+            // The caller reports the timeout either way.
         }
     }
 
-    private static async Task<string> ReadQuietly(Task<string> read)
+    /// <summary>Reads a stream into a buffer so the text read so far is available even if EOF never arrives.</summary>
+    private sealed class StreamPump
     {
-        try
+        private readonly StringBuilder _buffer = new();
+        private readonly Task _task;
+
+        public StreamPump(StreamReader reader)
         {
-            return await read;
+            _task = Task.Run(async () =>
+            {
+                var chunk = new char[4096];
+
+                try
+                {
+                    int read;
+                    while ((read = await reader.ReadAsync(chunk, 0, chunk.Length)) > 0)
+                    {
+                        lock (_buffer)
+                        {
+                            _buffer.Append(chunk, 0, read);
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                    // Stream closed underneath us; keep what we have.
+                }
+            });
         }
-        catch (Exception)
+
+        /// <summary>Waits up to <paramref name="grace"/> for EOF, then returns whatever has been read.</summary>
+        public async Task<string> WaitAsync(TimeSpan grace)
         {
-            return string.Empty;
+            await Task.WhenAny(_task, Task.Delay(grace));
+
+            lock (_buffer)
+            {
+                return _buffer.ToString();
+            }
         }
     }
 }

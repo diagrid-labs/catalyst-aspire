@@ -18,6 +18,13 @@ public record ScenarioResponse
     public string? StdErr { get; init; }
     public int StdOutRepeat { get; init; } = 1;
     public int StdErrRepeat { get; init; } = 1;
+    /// <summary>Writes stderr before stdout (default is stdout first).</summary>
+    public bool StdErrFirst { get; init; }
+    /// <summary>
+    /// Spawns a detached copy of the fake that inherits stdout/stderr and sleeps this long, then exits at once:
+    /// the parent is gone but the pipes stay open, like a daemon an update checker left behind.
+    /// </summary>
+    public int LeakBackgroundChildMilliseconds { get; init; }
     public bool ReadStdInForever { get; init; }
     /// <summary>Sleeps this long before exiting, to simulate a CLI that hangs.</summary>
     public int SleepMilliseconds { get; init; }
