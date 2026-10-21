@@ -264,21 +264,7 @@ internal static class Commands
 
         var arguments = new List<string> { "component", "create", descriptor.Name, "--type", descriptor.Type };
 
-        var hasMetadata = false;
-
-        foreach (var pair in descriptor.Metadata)
-        {
-            if (pair.Value is null) continue;
-
-            hasMetadata = true;
-            arguments.Add("--metadata");
-            arguments.Add($"{pair.Key}={pair.Value}");
-        }
-
-        if (! hasMetadata)
-        {
-            throw new ArgumentException("Component metadata required", nameof(descriptor));
-        }
+        AddMetadataArguments(arguments, descriptor);
 
         AddScopesArgument(arguments, descriptor.Scopes);
         AddOptionalArgument(arguments, "--project", options.Project);
@@ -295,6 +281,42 @@ internal static class Commands
     )
     {
         var arguments = BuildCreateComponentArgs(descriptor, options);
+        var result = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
+
+        result.EnsureSuccess(arguments);
+    }
+
+    /// <summary>
+    ///     <c>component update</c> replaces metadata and scopes wholesale (no partial updates), so both are always sent in full.
+    ///     It has no <c>--type</c> (a type cannot change) and no <c>--ignore-if-exists</c>. An empty scope list is sent as
+    ///     <c>[]</c>, which is how the CLI clears scopes, so the declared "all apps" actually reconciles.
+    /// </summary>
+    internal static string[] BuildUpdateComponentArgs(ComponentDescriptor descriptor, CreateComponentOptions options)
+    {
+        if (string.IsNullOrWhiteSpace(descriptor.Name))
+        {
+            throw new ArgumentException("Component name required", nameof(descriptor));
+        }
+
+        var arguments = new List<string> { "component", "update", descriptor.Name };
+
+        AddMetadataArguments(arguments, descriptor);
+
+        arguments.Add("--scopes");
+        arguments.Add(descriptor.Scopes.Count > 0 ? string.Join(",", descriptor.Scopes) : "[]");
+        AddOptionalArgument(arguments, "--project", options.Project);
+        AddFlagArgument(arguments, "--wait", options.Wait);
+
+        return arguments.ToArray();
+    }
+
+    public static async Task UpdateComponent(
+        ComponentDescriptor descriptor,
+        CreateComponentOptions options,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var arguments = BuildUpdateComponentArgs(descriptor, options);
         var result = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
 
         result.EnsureSuccess(arguments);
@@ -465,6 +487,39 @@ internal static class Commands
             arguments.Add(value.Value.ToString());
         }
     }
+
+    /// <summary>Each pair is ONE argv entry, so an embedded '=' (connection strings, base64) survives.</summary>
+    private static void AddMetadataArguments(IList<string> arguments, ComponentDescriptor descriptor)
+    {
+        var hasMetadata = false;
+
+        foreach (var pair in descriptor.Metadata)
+        {
+            if (pair.Value is null) continue;
+
+            hasMetadata = true;
+            arguments.Add("--metadata");
+            arguments.Add($"{pair.Key}={FormatMetadataValue(pair.Value)}");
+        }
+
+        if (! hasMetadata)
+        {
+            throw new ArgumentException("Component metadata required", nameof(descriptor));
+        }
+    }
+
+    // Values arrive as CLR primitives from the fluent API but as JsonElement from a strongly-typed spec;
+    // both must render booleans as lowercase true/false, which the CLI and Dapr expect.
+    private static string FormatMetadataValue(object value) => value switch
+    {
+        bool b => b ? "true" : "false",
+        JsonElement { ValueKind: JsonValueKind.True } => "true",
+        JsonElement { ValueKind: JsonValueKind.False } => "false",
+        JsonElement { ValueKind: JsonValueKind.String } e => e.GetString() ?? string.Empty,
+        JsonElement e => e.GetRawText(),
+        IFormattable f => f.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
+        _ => value.ToString() ?? string.Empty,
+    };
 
     private static void AddScopesArgument(IList<string> arguments, IList<string> scopes)
     {

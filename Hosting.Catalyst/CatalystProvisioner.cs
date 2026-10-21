@@ -81,13 +81,11 @@ public interface CatalystProvisioner
     Task<AppDetails> GetAppDetails(string name, string projectName, CancellationToken cancellationToken);
 
     /// <summary>
-    ///     Creates a component in Catalyst.
+    ///     Reconciles a component: <c>component update</c> when <paramref name="isManagedServiceComponent"/> (its name is a
+    ///     declared KV store or pub/sub, so the CLI already created it), otherwise <c>component create --ignore-if-exists</c>.
+    ///     The caller decides from declared names; there is no <c>component get</c> probe.
     /// </summary>
-    /// <param name="descriptor"></param>
-    /// <param name="projectName"></param>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
-    Task CreateComponent(ComponentDescriptor descriptor, string projectName, CancellationToken cancellationToken);
+    Task UpsertComponent(ComponentDescriptor descriptor, string projectName, bool isManagedServiceComponent, CancellationToken cancellationToken);
 
     /// <summary>
     ///     Creates a Catalyst pubsub service.

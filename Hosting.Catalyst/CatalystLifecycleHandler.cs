@@ -278,7 +278,11 @@ internal class CatalystLifecycleHandler(
         {
             try
             {
-                await provisioner.CreateComponent(pair.Value, catalystProject.ProjectName, cancellationToken);
+                // A component named after a declared KV store or pub/sub is the one the CLI created for it: update, do not create.
+                var backsDeclaredService = catalystProject.KvStores.ContainsKey(pair.Value.Name)
+                                           || catalystProject.PubSubs.ContainsKey(pair.Value.Name);
+
+                await provisioner.UpsertComponent(pair.Value, catalystProject.ProjectName, backsDeclaredService, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

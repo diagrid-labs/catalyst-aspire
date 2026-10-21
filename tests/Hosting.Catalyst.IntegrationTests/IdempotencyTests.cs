@@ -39,12 +39,12 @@ public class IdempotencyTests
         Assert.Equal("diagrid://t", app.ApiToken);
         await provisioner.CreatePubSub("ps", new() { Project = "demo" }, ct);
         await provisioner.CreateKvStore("kv", new() { Project = "demo" }, ct);
-        await provisioner.CreateComponent(new()
+        await provisioner.UpsertComponent(new()
         {
             Name = "store",
             Type = "state.in-memory",
             Metadata = new Dictionary<string, object?> { ["k"] = "v" },
-        }, "demo", ct);
+        }, "demo", false, ct);
 
         if (includeSubscription)
         {

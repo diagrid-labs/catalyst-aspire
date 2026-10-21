@@ -130,12 +130,18 @@ public class CliCatalystProvisioner : CatalystProvisioner
         };
     }
 
-    public async Task CreateComponent(ComponentDescriptor descriptor, string projectName, CancellationToken cancellationToken)
+    public async Task UpsertComponent(ComponentDescriptor descriptor, string projectName, bool isManagedServiceComponent, CancellationToken cancellationToken)
     {
-        await Commands.CreateComponent(descriptor, new()
+        var options = new CreateComponentOptions { Project = projectName };
+
+        if (isManagedServiceComponent)
         {
-            Project = projectName,
-        }, cancellationToken);
+            await Commands.UpdateComponent(descriptor, options, cancellationToken);
+        }
+        else
+        {
+            await Commands.CreateComponent(descriptor, options, cancellationToken);
+        }
     }
 
     public async Task CreatePubSub(string name, PubSubDescriptor options, CancellationToken cancellationToken)

@@ -166,6 +166,7 @@ public class CommandArgumentTests
         (nameof(Commands.BuildGetIdentityArgs), Commands.BuildGetIdentityArgs(IdentityKind.App, "a", "demo")),
         (nameof(Commands.BuildGetIdentityArgs), Commands.BuildGetIdentityArgs(IdentityKind.Agent, "a", "demo")),
         (nameof(Commands.BuildCreateComponentArgs), Commands.BuildCreateComponentArgs(Component, new() { Project = "demo" })),
+        (nameof(Commands.BuildUpdateComponentArgs), Commands.BuildUpdateComponentArgs(Component, new() { Project = "demo" })),
         (nameof(Commands.BuildCreatePubSubArgs), Commands.BuildCreatePubSubArgs("ps", new() { Project = "demo" })),
         (nameof(Commands.BuildCreateKvStoreArgs), Commands.BuildCreateKvStoreArgs("kv", new() { Project = "demo" })),
         (nameof(Commands.BuildGetKvStoreArgs), Commands.BuildGetKvStoreArgs("kv", "demo")),
