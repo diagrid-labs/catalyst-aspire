@@ -34,7 +34,7 @@ public record CliIdentityDetails
 
         throw new InvalidOperationException(
             $"Could not find an API token for '{resourceName}' at {apiUrl}. " +
-            "Neither the top-level token nor the first embedded token was present in the CLI output. " +
+            "Neither status.apiToken nor status.appIds[0].status.apiToken was present in the CLI output. " +
             "The Agent API may be unavailable on this deployment.");
     }
 }

@@ -25,7 +25,8 @@ public class IdentityTokenResolutionTests
         Assert.Contains("my-agent", ex.Message);
         Assert.Contains("https://api.self-hosted.example/", ex.Message);
         Assert.Contains("Agent API may be unavailable", ex.Message);
-        Assert.DoesNotContain("appid", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("appid get", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("diagrid appid", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static CliIdentityDetails Parse(string json)
