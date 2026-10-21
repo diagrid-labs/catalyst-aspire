@@ -64,7 +64,7 @@ public class CliCatalystProvisioner : CatalystProvisioner
 
         return new()
         {
-            ApiToken = details.ResolveApiToken(name, $"project '{projectName}'"),
+            ApiToken = details.ResolveApiToken(name, IdentityKind.App, $"project '{projectName}'"),
         };
     }
 

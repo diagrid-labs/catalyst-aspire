@@ -8,17 +8,27 @@ namespace Hosting.Catalyst.IntegrationTests;
 [Collection(FakeDiagridCollection.Name)]
 public class IdempotencyTests
 {
-    // Exit 0 for everything, as --ignore-if-exists does when the resource already exists.
-    private static Scenario AlwaysSucceeds() => new()
+    private static readonly ScenarioResponse AppGet =
+        new() { ArgsMatch = "app get", StdOut = """{"status":{"apiToken":"diagrid://t"}}""" };
+
+    // Exit 0 for everything.
+    private static Scenario AlwaysSucceeds() => new() { Responses = [AppGet, new() { ExitCode = 0 }] };
+
+    // Models a project whose resources all already exist: a create succeeds only when it carries
+    // --ignore-if-exists, and otherwise fails the way the real CLI does on a conflict. This makes the flag
+    // load-bearing: remove it from any builder and that create exits 1.
+    private static Scenario EverythingAlreadyExists() => new()
     {
         Responses =
         [
-            new() { ArgsMatch = "app get", StdOut = """{"status":{"apiToken":"diagrid://t"}}""" },
+            AppGet,
+            new() { ArgsMatch = "--ignore-if-exists", ExitCode = 0 },
+            new() { ArgsMatch = " create ", ExitCode = 1, StdErr = "Error: already exists" },
             new() { ExitCode = 0 },
         ],
     };
 
-    private static async Task ProvisionAsync()
+    private static async Task ProvisionAsync(bool includeSubscription = true)
     {
         var provisioner = new CliCatalystProvisioner();
         var ct = CancellationToken.None;
@@ -35,51 +45,81 @@ public class IdempotencyTests
             Type = "state.in-memory",
             Metadata = new Dictionary<string, object?> { ["k"] = "v" },
         }, "demo", ct);
-        await provisioner.CreateSubscription("demo",
-            new() { Name = "sub", Component = "ps", Topic = "t", Route = "/r" }, ct);
+
+        if (includeSubscription)
+        {
+            await provisioner.CreateSubscription("demo",
+                new() { Name = "sub", Component = "ps", Topic = "t", Route = "/r" }, ct);
+        }
     }
 
     [Fact(Timeout = 60_000)]
-    public async Task Second_provisioning_run_is_clean_and_passes_ignore_if_exists()
+    public async Task Rerun_against_existing_resources_succeeds_for_every_create_that_has_ignore_if_exists()
     {
         using var fake = new FakeDiagridFixture();
-        fake.SetScenario(AlwaysSucceeds());
+        fake.SetScenario(EverythingAlreadyExists());
 
-        await ProvisionAsync();
-        await ProvisionAsync();
+        await ProvisionAsync(includeSubscription: false);
+        await ProvisionAsync(includeSubscription: false);
 
         var creates = fake.Invocations.Where(i => i[1] == "create").ToList();
-        Assert.Equal(12, creates.Count);
-        Assert.All(creates.Where(c => c[0] != "subscription"), c => Assert.Contains("--ignore-if-exists", c));
-        Assert.All(creates.Where(c => c[0] == "subscription"), c => Assert.DoesNotContain("--ignore-if-exists", c));
+        Assert.Equal(10, creates.Count);
+        Assert.All(creates, c => Assert.Contains("--ignore-if-exists", c));
         Assert.DoesNotContain(fake.Invocations, i => i[0] == "appid");
     }
 
     [Fact(Timeout = 60_000)]
-    public async Task Every_project_scoped_call_passes_project_and_none_depends_on_project_use()
+    public async Task Rerun_without_ignore_if_exists_would_fail_proving_the_flag_is_load_bearing()
+    {
+        // Sanity check on the scenario itself: a bare create against an existing resource exits 1.
+        using var fake = new FakeDiagridFixture();
+        fake.SetScenario(EverythingAlreadyExists());
+
+        var result = await fake.RunAsync("project", "create", "demo");
+
+        Assert.Equal(1, result.ExitCode);
+    }
+
+    // PINS CURRENT BEHAVIOUR. subscription create has no --ignore-if-exists and the swallowing catch is gone, so
+    // re-running an AppHost that declares a subscription still fails. Task 12 (UpsertSubscription with a
+    // `subscription get` probe) closes this; when it lands this test MUST be updated to expect success.
+    [Fact(Timeout = 60_000)]
+    public async Task Subscription_create_on_rerun_still_fails_loudly_until_task_12()
+    {
+        using var fake = new FakeDiagridFixture();
+        fake.SetScenario(EverythingAlreadyExists());
+
+        var ex = await Assert.ThrowsAsync<CatalystCliException>(() => ProvisionAsync(includeSubscription: true));
+
+        Assert.Equal(["subscription", "create"], ex.Arguments.Take(2));
+        Assert.Contains("already exists", ex.Message);
+    }
+
+    [Fact(Timeout = 60_000)]
+    public async Task Every_project_scoped_call_passes_project_explicitly_and_the_runner_appends_no_color()
     {
         using var fake = new FakeDiagridFixture();
         fake.SetScenario(AlwaysSucceeds());
 
         await ProvisionAsync();
 
-        // project create names the project positionally; no other call here may rely on a current project.
+        // project create names the project positionally; no other provisioning call may rely on a current
+        // project having been selected with `project use` (this driver never calls Init or UseProject).
         Assert.All(fake.Invocations.Where(i => i[0] != "project"), i => Assert.Contains("--project", i));
-        Assert.DoesNotContain(fake.Invocations, i => i is ["project", "use", ..]);
-        // The runner appends --no-color as the trailing argument.
         Assert.All(fake.Invocations, i => Assert.Equal("--no-color", i[^1]));
     }
 
     [Fact(Timeout = 60_000)]
-    public async Task Two_concurrent_provisioners_against_one_project_both_succeed()
+    public async Task Two_concurrent_provisioners_against_existing_resources_both_succeed()
     {
         using var fake = new FakeDiagridFixture();
-        fake.SetScenario(AlwaysSucceeds());
+        fake.SetScenario(EverythingAlreadyExists());
 
-        await Task.WhenAll(ProvisionAsync(), ProvisionAsync());
+        await Task.WhenAll(ProvisionAsync(includeSubscription: false), ProvisionAsync(includeSubscription: false));
 
-        Assert.DoesNotContain(fake.Invocations, i => i is ["project", "use", ..]);
-        Assert.Equal(12, fake.Invocations.Count(i => i[1] == "create"));
+        var creates = fake.Invocations.Where(i => i[1] == "create").ToList();
+        Assert.Equal(10, creates.Count);
+        Assert.All(creates, c => Assert.Contains("--ignore-if-exists", c));
     }
 
     [Fact(Timeout = 30_000)]

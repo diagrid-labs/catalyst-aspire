@@ -140,43 +140,49 @@ public class CommandArgumentTests
 
     [Fact]
     public void No_builder_includes_no_color_because_the_runner_appends_it()
-        => Assert.DoesNotContain(AllBuilderOutputs(), a => a.Contains("--no-color"));
+        => Assert.DoesNotContain(AllBuilderOutputs(), b => b.Args.Contains("--no-color"));
 
     [Fact]
     public void Never_emits_the_hidden_appid_noun()
     {
-        // Every argument builder in Commands. A new builder must be added here.
-        Assert.DoesNotContain("appid", AllBuilderOutputs().Select(a => a[0]));
-        Assert.DoesNotContain(AllBuilderOutputs(), a => a.Contains("appid"));
+        Assert.DoesNotContain("appid", AllBuilderOutputs().Select(b => b.Args[0]));
+        Assert.DoesNotContain(AllBuilderOutputs(), b => b.Args.Contains("appid"));
     }
 
-    private static string[][] AllBuilderOutputs() =>
+    // Every argument builder in Commands, by name. Identity builders appear once per kind.
+    private static (string Name, string[] Args)[] AllBuilderOutputs() =>
     [
-        Commands.BuildUseCatalystArgs(),
-        Commands.BuildUseProjectArgs("demo"),
-        Commands.BuildCreateProjectArgs("demo", new()),
-        Commands.BuildGetProjectArgs("demo"),
-        Commands.BuildCreateIdentityArgs(IdentityKind.App, "a", new() { Project = "demo" }),
-        Commands.BuildCreateIdentityArgs(IdentityKind.Agent, "a", new() { Project = "demo" }),
-        Commands.BuildGetIdentityArgs(IdentityKind.App, "a", "demo"),
-        Commands.BuildGetIdentityArgs(IdentityKind.Agent, "a", "demo"),
-        Commands.BuildCreateComponentArgs(Component, new() { Project = "demo" }),
-        Commands.BuildCreatePubSubArgs("ps", new() { Project = "demo" }),
-        Commands.BuildCreateKvStoreArgs("kv", new() { Project = "demo" }),
-        Commands.BuildListKvStoresArgs("demo"),
-        Commands.BuildCreateSubscriptionArgs("sub", new() { Project = "demo", Component = "ps", Topic = "t", Route = "/r" }),
+        (nameof(Commands.BuildUseCatalystArgs), Commands.BuildUseCatalystArgs()),
+        (nameof(Commands.BuildUseProjectArgs), Commands.BuildUseProjectArgs("demo")),
+        (nameof(Commands.BuildCreateProjectArgs), Commands.BuildCreateProjectArgs("demo", new())),
+        (nameof(Commands.BuildGetProjectArgs), Commands.BuildGetProjectArgs("demo")),
+        (nameof(Commands.BuildCreateIdentityArgs), Commands.BuildCreateIdentityArgs(IdentityKind.App, "a", new() { Project = "demo" })),
+        (nameof(Commands.BuildCreateIdentityArgs), Commands.BuildCreateIdentityArgs(IdentityKind.Agent, "a", new() { Project = "demo" })),
+        (nameof(Commands.BuildGetIdentityArgs), Commands.BuildGetIdentityArgs(IdentityKind.App, "a", "demo")),
+        (nameof(Commands.BuildGetIdentityArgs), Commands.BuildGetIdentityArgs(IdentityKind.Agent, "a", "demo")),
+        (nameof(Commands.BuildCreateComponentArgs), Commands.BuildCreateComponentArgs(Component, new() { Project = "demo" })),
+        (nameof(Commands.BuildCreatePubSubArgs), Commands.BuildCreatePubSubArgs("ps", new() { Project = "demo" })),
+        (nameof(Commands.BuildCreateKvStoreArgs), Commands.BuildCreateKvStoreArgs("kv", new() { Project = "demo" })),
+        (nameof(Commands.BuildListKvStoresArgs), Commands.BuildListKvStoresArgs("demo")),
+        (nameof(Commands.BuildCreateSubscriptionArgs), Commands.BuildCreateSubscriptionArgs("sub", new() { Project = "demo", Component = "ps", Topic = "t", Route = "/r" })),
     ];
 
     [Fact]
-    public void Every_public_builder_is_covered_by_the_appid_guard()
+    public void Every_argument_builder_in_Commands_is_listed_in_AllBuilderOutputs()
     {
-        // Guards the guard: fails when someone adds a Build*Args method without listing it in AllBuilderOutputs.
-        var builders = typeof(Commands)
+        // Guards the guard. Keyed on names so a new builder cannot be waved through by bumping a count.
+        // Any static method named Build*Args returning a string sequence counts, whatever its visibility.
+        var reflected = typeof(Commands)
             .GetMethods(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
-            .Count(m => m.Name.StartsWith("Build") && m.Name.EndsWith("Args") && m.ReturnType == typeof(string[]));
+            .Where(m => m.Name.StartsWith("Build") && m.Name.EndsWith("Args")
+                        && typeof(IEnumerable<string>).IsAssignableFrom(m.ReturnType))
+            .Select(m => m.Name)
+            .Distinct()
+            .OrderBy(n => n, StringComparer.Ordinal);
 
-        // 11 builders; the identity ones appear once per kind in AllBuilderOutputs, hence 13 outputs.
-        Assert.Equal(11, builders);
+        var listed = AllBuilderOutputs().Select(b => b.Name).Distinct().OrderBy(n => n, StringComparer.Ordinal);
+
+        Assert.Equal(reflected, listed);
     }
 
     private static CliResult Truncated(bool flag) => new("""{"status":{"apiToken":"abc""", "stderr", 0, flag);
@@ -194,7 +200,7 @@ public class CommandArgumentTests
 
     [Fact]
     public void ParseJson_lets_the_original_json_exception_propagate_when_output_was_not_flagged_truncated()
-        => Assert.ThrowsAny<JsonException>(() => Commands.ParseJson(
+        => Assert.Throws<JsonException>(() => Commands.ParseJson(
             Truncated(false), ["app", "get", "a"], json => JsonSerializer.Deserialize<CliIdentityDetailsProbe>(json)));
 
     private sealed record CliIdentityDetailsProbe(string? Status);

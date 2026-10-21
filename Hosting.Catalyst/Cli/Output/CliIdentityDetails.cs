@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
+using Diagrid.Aspire.Hosting.Catalyst.Model;
 
 namespace Diagrid.Aspire.Hosting.Catalyst.Cli.Output;
 
@@ -18,7 +19,7 @@ public record CliIdentityDetails
     /// Returns <c>status.apiToken</c> when non-empty (App, App ID), else
     /// <c>status.appIds[0].status.apiToken</c> (Agent, which has no top-level token), else throws.
     /// </summary>
-    public string ResolveApiToken(string resourceName, string apiUrl)
+    public string ResolveApiToken(string resourceName, IdentityKind kind, string context)
     {
         var token = Status?.ApiToken;
         if (!string.IsNullOrEmpty(token))
@@ -32,10 +33,15 @@ public record CliIdentityDetails
             return token;
         }
 
-        throw new InvalidOperationException(
-            $"Could not find an API token for '{resourceName}' at {apiUrl}. " +
-            "Neither status.apiToken nor status.appIds[0].status.apiToken was present in the CLI output. " +
-            "The Agent API may be unavailable on this deployment.");
+        var message =
+            $"Could not find an API token for '{resourceName}' ({context}). " +
+            "Neither status.apiToken nor status.appIds[0].status.apiToken was present in the CLI output.";
+        if (kind == IdentityKind.Agent)
+        {
+            message += " The Agent API may be unavailable on this deployment.";
+        }
+
+        throw new InvalidOperationException(message);
     }
 }
 
