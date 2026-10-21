@@ -1,7 +1,7 @@
-using Diagrid.Aspire.Hosting.Catalyst.Cli.Options;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Diagrid.Aspire.Hosting.Catalyst.Cli.Options;
 using Diagrid.Aspire.Hosting.Catalyst.Model;
 
 namespace Diagrid.Aspire.Hosting.Catalyst.Cli;

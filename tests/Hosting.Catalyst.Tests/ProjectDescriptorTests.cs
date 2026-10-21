@@ -38,9 +38,16 @@ public class ProjectDescriptorTests
     [Fact]
     public void Sends_managed_service_flags_as_explicit_booleans()
         => Assert.Equal(
-            ["project", "create", "demo", "--deploy-managed-pubsub=true", "--deploy-managed-kv=true",
+            ["project", "create", "demo", "--deploy-managed-pubsub=false", "--deploy-managed-kv=true",
              "--wait", "--ignore-if-exists"],
-            Commands.BuildCreateProjectArgs("demo", new() { DeployManagedKv = true, DeployManagedPubsub = true }));
+            Commands.BuildCreateProjectArgs("demo", new() { DeployManagedKv = true, DeployManagedPubsub = false }));
+
+    [Fact]
+    public void Managed_service_flags_are_not_transposed()
+        => Assert.Equal(
+            ["project", "create", "demo", "--deploy-managed-pubsub=true", "--deploy-managed-kv=false",
+             "--wait", "--ignore-if-exists"],
+            Commands.BuildCreateProjectArgs("demo", new() { DeployManagedKv = false, DeployManagedPubsub = true }));
 
     [Theory]
     [InlineData(true, "--enable-workflow-history-signing=true")]
@@ -71,7 +78,7 @@ public class ProjectDescriptorTests
             EnableManagedWorkflow = true,
             Region = "aws-us-west",
             DeployManagedKv = true,
-            DeployManagedPubsub = true,
+            DeployManagedPubsub = false,
             GlobalIdMaxBodySize = "8Mi",
             EnableWorkflowHistorySigning = true,
             DisableAppTunnels = true,
@@ -79,7 +86,7 @@ public class ProjectDescriptorTests
 
         Assert.Equal(
             ["project", "create", "demo", "--region", "aws-us-west", "--global-id-max-body-size", "8Mi",
-             "--enable-workflow-history-signing=true", "--deploy-managed-pubsub=true", "--deploy-managed-kv=true",
+             "--enable-workflow-history-signing=true", "--deploy-managed-pubsub=false", "--deploy-managed-kv=true",
              "--enable-managed-workflow", "--wait", "--disable-app-tunnels", "--ignore-if-exists"],
             Commands.BuildCreateProjectArgs("demo", options));
         Assert.Equal("prod-us", CliCatalystProvisioner.ToCreateOptions(new ProjectDescriptor { RegionGroup = "prod-us" }).RegionGroup);
