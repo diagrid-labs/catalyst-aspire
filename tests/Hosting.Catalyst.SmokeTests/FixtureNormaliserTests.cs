@@ -24,6 +24,8 @@ public class FixtureNormaliserTests
     [InlineData("""{"api_key":"abc"}""")]
     [InlineData("""{"clientSecret":"abc"}""")]
     [InlineData("""{"Password":"abc"}""")]
+    [InlineData("""{"tokens":["hunter2"]}""")]
+    [InlineData("""{"credentials":{"a":{"b":"hunter2"}}}""")]
     [InlineData("""{"note":"bearer diagrid://real-secret trailing"}""")]
     [InlineData("""{"createdBy":"someone@corp.example.org"}""")]
     [InlineData("""{"orgId":"abcdefghijklmnopqrstuvwxyz0123456789"}""")]
@@ -33,6 +35,7 @@ public class FixtureNormaliserTests
         var text = Clean(json).ToJsonString();
 
         Assert.DoesNotContain("real-secret", text);
+        Assert.DoesNotContain("hunter2", text);
         Assert.DoesNotContain("someone", text);
         Assert.DoesNotContain("abcdefghij", text);
         Assert.DoesNotContain("aspire-smoke-0123456789ab", text);
@@ -46,6 +49,8 @@ public class FixtureNormaliserTests
     [InlineData("""{"a":"me@corp.io"}""")]
     [InlineData("""{"a":"abcdefghijklmnopqrstuvwxyz0123456789"}""")]
     [InlineData("""{"a":"capture-app"}""")]
+    [InlineData("""{"tokens":["abc"]}""")]
+    [InlineData("""{"credentials":{"a":{"b":"hunter2"}}}""")]
     public void The_backstop_throws_on_anything_the_normaliser_did_not_clean(string json)
         => Assert.Throws<InvalidOperationException>(() => FixtureCapture.AssertNoSecrets(JsonNode.Parse(json)!, Names));
 

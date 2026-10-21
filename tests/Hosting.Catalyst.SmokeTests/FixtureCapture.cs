@@ -74,24 +74,24 @@ public partial class FixtureCapture
         File.WriteAllText(Path.Combine(dir, file), ordered.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
     }
 
-    internal static JsonNode? Normalise(JsonNode? node, string[] names, string? parentKey)
+    internal static JsonNode? Normalise(JsonNode? node, string[] names, string? parentKey, bool inSecret = false)
     {
         switch (node)
         {
             case JsonObject obj:
                 foreach (var (key, value) in obj.ToList())
                 {
-                    obj[key] = Normalise(value, names, key);
+                    obj[key] = Normalise(value, names, key, inSecret || SecretKey().IsMatch(key));
                 }
                 return obj;
             case JsonArray array:
                 for (var i = 0; i < array.Count; i++)
                 {
-                    array[i] = Normalise(array[i], names, parentKey);
+                    array[i] = Normalise(array[i], names, parentKey, inSecret);
                 }
                 return array;
             case JsonValue value when value.TryGetValue<string>(out var s):
-                return JsonValue.Create(NormaliseString(s, names, parentKey));
+                return JsonValue.Create(NormaliseString(s, names, parentKey, inSecret));
             case JsonValue value when parentKey == "resourceVersion" && value.GetValueKind() == JsonValueKind.Number:
                 return JsonValue.Create(1);
             default:
@@ -99,8 +99,11 @@ public partial class FixtureCapture
         }
     }
 
-    private static string NormaliseString(string s, string[] names, string? key)
+    private static string NormaliseString(string s, string[] names, string? key, bool inSecret)
     {
+        // Anything nested under a secret-named key (arrays and objects included) is secret, whatever its own key says.
+        if (inSecret && (key is null || !SecretKey().IsMatch(key))) return Redacted;
+
         if (key is not null && SecretKey().IsMatch(key))
         {
             // Case-insensitive on purpose: ApiToken, accessToken, api_key, clientSecret, Password...
@@ -131,6 +134,11 @@ public partial class FixtureCapture
             case JsonObject obj:
                 foreach (var (key, value) in obj)
                 {
+                    if (value is JsonArray or JsonObject && SecretKey().IsMatch(key) && AnyNonMockString(value))
+                    {
+                        throw new InvalidOperationException($"{path}.{key}: secret-looking key holds a non-mock value");
+                    }
+
                     if (value is JsonValue v && v.TryGetValue<string>(out var str) && SecretKey().IsMatch(key)
                         && str is not (MockApiToken or MockAppToken or Redacted))
                     {
@@ -160,6 +168,14 @@ public partial class FixtureCapture
 
     [GeneratedRegex(@"^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")]
     private static partial Regex Uuid();
+
+    private static bool AnyNonMockString(JsonNode node) => node switch
+    {
+        JsonObject o => o.Any(kv => kv.Value is not null && AnyNonMockString(kv.Value)),
+        JsonArray a => a.Any(i => i is not null && AnyNonMockString(i)),
+        JsonValue v when v.TryGetValue<string>(out var str) => str is not (MockApiToken or MockAppToken or Redacted),
+        _ => false,
+    };
 
     [GeneratedRegex("token|key|secret|password|credential|bearer", RegexOptions.IgnoreCase)]
     private static partial Regex SecretKey();

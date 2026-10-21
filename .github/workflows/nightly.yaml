@@ -124,8 +124,26 @@ jobs:
         if: steps.gate.outputs.enabled == 'true'
         run: bash .github/scripts/scan-fixtures.sh tests/fixtures
 
+      # Backstop for a runner killed mid-test. Fails loudly (no continue-on-error) and runs even after a failure.
+      # Runs BEFORE the credential is removed (it needs it) and before the PR step, whose condition therefore must not
+      # depend on success(), or a sweep failure would suppress the drift PR.
+      - name: "Sweep leaked smoke projects"
+        id: sweep
+        if: always() && steps.gate.outputs.enabled == 'true'
+        run: bash .github/scripts/sweep-smoke-projects.sh
+
+      # `diagrid login` persists the credential in the CLI's config directory, readable by every later step, and
+      # create-pull-request below carries a contents:write token. Remove the credential first so "scoped to the login
+      # step" is actually true. The delete is tolerant of unknown config locations; the logout call is the real removal.
+      - name: "Remove stored credentials"
+        if: always() && steps.gate.outputs.enabled == 'true'
+        run: |
+          diagrid logout || true
+          rm -rf "$HOME/.diagrid" "$HOME/.config/diagrid" "$HOME/.cache/diagrid"
+
+      # Not success(): a failed smoke test or sweep must not suppress the drift PR. Only the secret scan gates it.
       - name: "Open a PR when fixtures drifted"
-        if: steps.gate.outputs.enabled == 'true'
+        if: ${{ !cancelled() && steps.gate.outputs.enabled == 'true' && steps.scan.outcome == 'success' }}
         uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7.0.11
         with:
           branch: automation/fixture-drift
@@ -136,13 +154,6 @@ jobs:
             The nightly run re-captured `tests/fixtures` from a real diagrid CLI and they differ from what is committed.
             The diff is the drift signal: read it, then fix the integration or accept the new shape.
             Tokens, names, timestamps and ids are normalised on capture and scanned for secrets before this PR, so a diff here is a real change.
-
-      # Backstop for a runner killed mid-test. Fails loudly (no continue-on-error) and runs even after a failure.
-      # Placed after the PR step so a sweep failure cannot suppress the drift PR (create-pull-request needs success()).
-      - name: "Sweep leaked smoke projects"
-        id: sweep
-        if: always() && steps.gate.outputs.enabled == 'true'
-        run: bash .github/scripts/sweep-smoke-projects.sh
 
       - name: "Open an issue when the nightly fails"
         if: always() && steps.gate.outputs.enabled == 'true' && (steps.smoke.outcome == 'failure' || steps.capture.outcome == 'failure' || steps.schemas.outcome == 'failure' || steps.scan.outcome == 'failure' || steps.sweep.outcome == 'failure')
