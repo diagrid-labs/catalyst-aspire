@@ -1,0 +1,10 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "statestore", "kvstore", "kvstores", "appid", "appids", "cloudgrid", "cloudruntime",
+    "subresources", "aiagents", "mcpserver", "testdata", "usererror", "controlplane",
+    "upsert", "argv", "stdout", "stderr", "cron", "diagrid", "diagridio", "omitempty",
+    "Dapr", "Diagrid", "pubsub", "apikey", "Entra"
+  ]
+}

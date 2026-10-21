@@ -27,13 +27,7 @@ public static class ResourceBuilderExtensions
     {
         applicationBuilder.Services.AddSingleton<CatalystProvisioner, CliCatalystProvisioner>();
 
-        var entryAssembly = Assembly.GetEntryAssembly();
-        var entryPointNamespace = entryAssembly?.EntryPoint?.DeclaringType?.Namespace;
-
-        // todo: Either replace `"aspire"` here with a default inferred from `applicationBuilder`, or make `projectName` a required param.
-        var projectName = customProjectName 
-            ?? entryPointNamespace?.Replace(".", "-").ToLower()
-                ?? "aspire";
+        var projectName = ResolveProjectName(customProjectName, Assembly.GetEntryAssembly()?.EntryPoint?.DeclaringType?.Namespace);
 
         // todo: Custom icon, support pending https://github.com/dotnet/aspire/issues/8684
         var catalystProject = applicationBuilder.AddResource(new CatalystProject
@@ -44,7 +38,7 @@ public static class ResourceBuilderExtensions
 
         catalystProject.WithAnnotation(new ResourceUrlAnnotation
         {
-            Url = "https://catalyst.r1.diagrid.io/admin/organization",
+            Url = DashboardUrl(Environment.GetEnvironmentVariable(DiagridUrlVariable)),
             DisplayText = "Catalyst Dashboard",
         });
 
@@ -66,6 +60,41 @@ public static class ResourceBuilderExtensions
         });
 
         return catalystProject;
+    }
+
+    private const string DiagridUrlVariable = "DIAGRID_URL";
+    private const string DefaultApiUrl = "https://api.r1.diagrid.io/";
+
+    /// <summary>
+    ///     Uses the given name, else the entry point's namespace, and throws rather than inventing a name.
+    /// </summary>
+    internal static string ResolveProjectName(string? customProjectName, string? entryPointNamespace)
+    {
+        if (!string.IsNullOrWhiteSpace(customProjectName))
+            return customProjectName;
+
+        if (!string.IsNullOrWhiteSpace(entryPointNamespace))
+            return entryPointNamespace.Replace(".", "-").ToLowerInvariant();
+
+        throw new ArgumentException(
+            "The Catalyst project name could not be inferred from the entry assembly. Pass it explicitly to AddCatalystProject.",
+            "customProjectName");
+    }
+
+    /// <summary>
+    ///     Mirrors the Diagrid CLI's <c>ProductConsoleURL</c> for the <c>catalyst</c> product, driven by <c>DIAGRID_URL</c>
+    ///     (default <c>https://api.r1.diagrid.io/</c>).
+    /// </summary>
+    internal static string DashboardUrl(string? apiUrl)
+    {
+        var url = string.IsNullOrWhiteSpace(apiUrl) ? DefaultApiUrl : apiUrl;
+        var host = url.Contains("staging.diagrid.dev", StringComparison.Ordinal) ? "catalyst.staging.diagrid.dev"
+            : url.Contains(".dev.diagrid.io", StringComparison.Ordinal) ? "catalyst.dev.diagrid.io"
+            : url.Contains(".stg.diagrid.io", StringComparison.Ordinal) ? "catalyst.stg.diagrid.io"
+            : url.Contains(".local.diagrid.io", StringComparison.Ordinal) || url.Contains(".7f000001.nip.io", StringComparison.Ordinal) ? "catalyst.local.diagrid.io"
+            : "catalyst.diagrid.io";
+
+        return $"https://{host}/admin/organization";
     }
 
     /// <summary>
@@ -140,8 +169,7 @@ public static class ResourceBuilderExtensions
             catalystProxy = applicationBuilder.AddExecutable(
                 proxyName,
                 "diagrid",
-                // todo: I want a better, more explicit PWD than this.
-                ".",
+                applicationBuilder.AppHostDirectory,
                 BuildDevRunArgs(catalystProjectBuilder.Resource.ProjectName, resourceBuilder.Resource.Name, httpEndpoint)
             );
         }
@@ -367,7 +395,8 @@ public static class ResourceBuilderExtensions
     }
 
     /// <summary>
-    ///     Adds a sample Catalyst-managed pubsub and pubsub component to the Catalyst project.
+    ///     Adds a sample Catalyst-managed pubsub to the Catalyst project. The Diagrid CLI creates its fronting
+    ///     component; this does not add one.
     ///     <br /><br />
     ///     This overload is useful for demos and quick prototyping, it's recommended to use the full overload for your projects.
     ///     <br /><br />
@@ -413,7 +442,8 @@ public static class ResourceBuilderExtensions
     }
 
     /// <summary>
-    ///     Adds a sample Catalyst-managed KV store and state component to the Catalyst project.
+    ///     Adds a sample Catalyst-managed KV store to the Catalyst project. The Diagrid CLI creates its fronting
+    ///     component; this does not add one, and it does not set actorStateStore.
     ///     <br /><br />
     ///     This overload is useful for demos and quick prototyping, it's recommended to use the full overload for your projects.
     ///     <br /><br />
