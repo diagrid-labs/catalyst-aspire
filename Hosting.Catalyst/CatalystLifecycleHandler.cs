@@ -56,7 +56,7 @@ internal class CatalystLifecycleHandler(
 
         try
         {
-            await provisioner.Init(cancellationToken);
+            await provisioner.Init(logger, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

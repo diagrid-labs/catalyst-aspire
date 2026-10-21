@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Diagrid.Aspire.Hosting.Catalyst.Cli.Options;
 using Diagrid.Aspire.Hosting.Catalyst.Model;
 
@@ -9,10 +10,10 @@ namespace Diagrid.Aspire.Hosting.Catalyst.Cli;
 
 public class CliCatalystProvisioner : CatalystProvisioner
 {
-    public async Task Init(CancellationToken cancellationToken = default)
+    public async Task Init(ILogger logger, CancellationToken cancellationToken = default)
     {
         // Preflight, in this order: nothing below is worth running against a missing, too-old or signed-out CLI.
-        await Commands.EnsureSupportedVersion(cancellationToken);
+        await Commands.EnsureSupportedVersion(logger, cancellationToken);
         await Commands.EnsureLoggedIn(cancellationToken);
 
         // Best-effort courtesy: every command passes --project explicitly, so nothing depends on this succeeding.

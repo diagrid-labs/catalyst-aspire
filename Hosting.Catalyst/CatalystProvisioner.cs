@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Diagrid.Aspire.Hosting.Catalyst.Model;
 
 namespace Diagrid.Aspire.Hosting.Catalyst;
@@ -13,9 +14,10 @@ public interface CatalystProvisioner
     /// <summary>
     ///     In case any provisioner requires some setup, fine to noop.
     /// </summary>
+    /// <param name="logger">Where non-fatal preflight findings are reported.</param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    Task Init(CancellationToken cancellationToken);
+    Task Init(ILogger logger, CancellationToken cancellationToken);
 
     /// <summary>
     ///     Creates a subscription in Catalyst.

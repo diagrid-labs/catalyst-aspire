@@ -66,11 +66,60 @@ public class PreflightTests
     [InlineData("something went wrong\n")]
     [InlineData("Version: banana\n")]
     [InlineData("API server version: 1.181.0\n")] // only a differently-keyed line
-    public void Output_without_a_readable_Version_line_is_refused_rather_than_assumed_fine(string stdOut)
-    {
-        var ex = Assert.Throws<CatalystCliException>(() => CatalystCli.EnsureSupportedVersion(["version"], stdOut));
+    public void Output_without_a_readable_Version_line_reports_unreadable_instead_of_throwing(string stdOut)
+        => Assert.False(CatalystCli.EnsureSupportedVersion(["version"], stdOut));
 
-        Assert.Contains("Version:", ex.Message, StringComparison.Ordinal);
+    [Fact(Timeout = 30_000)]
+    public async Task An_unparseable_version_warns_and_proceeds()
+    {
+        using var fake = new FakeDiagridFixture();
+        fake.SetScenario(new Scenario { Responses = [new() { ArgsMatch = "version", StdOut = "Version: banana\n" }, Whoami(), AnythingElseSucceeds()] });
+        var logger = new CapturingLogger();
+
+        await new CliCatalystProvisioner().Init(logger, default);
+
+        var warning = Assert.Single(logger.Warnings);
+        Assert.Contains("no recognisable 'Version:' line", warning, StringComparison.Ordinal);
+        // It went on to the next gate and past it.
+        Assert.Contains(fake.Invocations, i => i is ["whoami", ..]);
+        Assert.Contains(fake.Invocations, i => i is ["product", "use", "catalyst", ..]);
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task A_version_command_that_fails_warns_and_proceeds()
+    {
+        using var fake = new FakeDiagridFixture();
+        fake.SetScenario(new Scenario { Responses = [new() { ArgsMatch = "version", ExitCode = 2, StdErr = "boom\n" }, Whoami(), AnythingElseSucceeds()] });
+        var logger = new CapturingLogger();
+
+        await new CliCatalystProvisioner().Init(logger, default);
+
+        Assert.Single(logger.Warnings);
+        Assert.Contains(fake.Invocations, i => i is ["whoami", ..]);
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task A_readable_supported_version_logs_no_warning()
+    {
+        using var fake = new FakeDiagridFixture();
+        fake.SetScenario(Healthy());
+        var logger = new CapturingLogger();
+
+        await new CliCatalystProvisioner().Init(logger, default);
+
+        Assert.Empty(logger.Warnings);
+    }
+
+    // The two real gates stay closed even though an unreadable version is open.
+    [Fact(Timeout = 30_000)]
+    public async Task An_unparseable_version_does_not_excuse_a_failed_login()
+    {
+        using var fake = new FakeDiagridFixture();
+        fake.SetScenario(new Scenario { Responses = [new() { ArgsMatch = "version", StdOut = "Version: banana\n" }, Whoami(1, "not authenticated\n")] });
+
+        var ex = await Assert.ThrowsAsync<CatalystCliException>(() => new CliCatalystProvisioner().Init(new CapturingLogger(), default));
+
+        Assert.Contains("diagrid login", ex.Message, StringComparison.Ordinal);
     }
 
     // --- Init, against the fake ---
@@ -81,7 +130,7 @@ public class PreflightTests
         using var fake = new FakeDiagridFixture();
         fake.SetScenario(new Scenario { Responses = [Version("1.85.0"), Whoami(1, "not authenticated\n"), AnythingElseSucceeds()] });
 
-        var ex = await Assert.ThrowsAsync<CatalystCliException>(() => new CliCatalystProvisioner().Init(default));
+        var ex = await Assert.ThrowsAsync<CatalystCliException>(() => new CliCatalystProvisioner().Init(new CapturingLogger(), default));
 
         Assert.Contains("diagrid login", ex.Message, StringComparison.Ordinal);
         Assert.Contains("not authenticated", ex.Message, StringComparison.Ordinal);
@@ -96,7 +145,7 @@ public class PreflightTests
         using var fake = new FakeDiagridFixture();
         fake.SetScenario(Healthy("1.80.0"));
 
-        var ex = await Assert.ThrowsAsync<CatalystCliException>(() => new CliCatalystProvisioner().Init(default));
+        var ex = await Assert.ThrowsAsync<CatalystCliException>(() => new CliCatalystProvisioner().Init(new CapturingLogger(), default));
 
         Assert.Contains("1.80.0", ex.Message, StringComparison.Ordinal);
         Assert.Contains(CatalystCli.MinimumVersion, ex.Message, StringComparison.Ordinal);
@@ -110,7 +159,7 @@ public class PreflightTests
     {
         using var empty = new EmptyPathFixture();
 
-        var ex = await Assert.ThrowsAsync<CatalystCliException>(() => new CliCatalystProvisioner().Init(default));
+        var ex = await Assert.ThrowsAsync<CatalystCliException>(() => new CliCatalystProvisioner().Init(new CapturingLogger(), default));
 
         Assert.Contains("docs.diagrid.io", ex.Message, StringComparison.Ordinal);
         Assert.Contains("PATH", ex.Message, StringComparison.Ordinal);
@@ -123,7 +172,7 @@ public class PreflightTests
         using var fake = new FakeDiagridFixture();
         fake.SetScenario(Healthy());
 
-        await new CliCatalystProvisioner().Init(default);
+        await new CliCatalystProvisioner().Init(new CapturingLogger(), default);
 
         Assert.Equal(
             [["version", "--no-color"], ["whoami", "--no-color"], ["product", "use", "catalyst", "--no-color"]],
@@ -139,7 +188,7 @@ public class PreflightTests
             Responses = [Version("1.85.0"), Whoami(), new() { ArgsMatch = "product use", ExitCode = 1, StdErr = "boom\n" }],
         });
 
-        await new CliCatalystProvisioner().Init(default);
+        await new CliCatalystProvisioner().Init(new CapturingLogger(), default);
 
         Assert.Contains(fake.Invocations, i => i is ["product", "use", "catalyst", ..]);
     }
@@ -222,6 +271,33 @@ public class PreflightTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => provisioning);
         await states.Drain();
         Assert.DoesNotContain(KnownResourceStates.FailedToStart, states.Snapshot());
+    }
+
+    private sealed class CapturingLogger : Microsoft.Extensions.Logging.ILogger
+    {
+        private readonly List<string> _warnings = [];
+
+        public IReadOnlyList<string> Warnings
+        {
+            get { lock (_warnings) return _warnings.ToList(); }
+        }
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            Microsoft.Extensions.Logging.LogLevel logLevel,
+            Microsoft.Extensions.Logging.EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == Microsoft.Extensions.Logging.LogLevel.Warning)
+            {
+                lock (_warnings) _warnings.Add(formatter(state, exception));
+            }
+        }
     }
 
     /// <summary>

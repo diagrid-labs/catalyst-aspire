@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Diagrid.Aspire.Hosting.Catalyst.Cli.Options;
 using Diagrid.Aspire.Hosting.Catalyst.Cli.Output;
 using Diagrid.Aspire.Hosting.Catalyst.Model;
@@ -62,8 +63,11 @@ internal static class Commands
     // 'diagrid version' has no --output flag (it is rejected as unknown); its plain output is parsed by key.
     internal static string[] BuildVersionArgs() => ["version"];
 
-    /// <summary>Fails with an install message when the CLI is missing, and an upgrade message when it is below the floor.</summary>
-    public static async Task EnsureSupportedVersion(CancellationToken cancellationToken)
+    /// <summary>
+    /// Fails with an install message when the CLI is missing, and an upgrade message when it is below the floor.
+    /// Fails OPEN (a warning) when the version cannot be read: the check only improves an error message.
+    /// </summary>
+    public static async Task EnsureSupportedVersion(ILogger logger, CancellationToken cancellationToken)
     {
         var arguments = BuildVersionArgs();
         CliResult result;
@@ -77,8 +81,16 @@ internal static class Commands
             throw CatalystCli.NotInstalled(arguments, missing);
         }
 
-        result.EnsureSuccess(arguments);
-        CatalystCli.EnsureSupportedVersion(arguments, result.StdOut);
+        if (result.ExitCode != 0)
+        {
+            logger.LogWarning("{Message}", CatalystCli.UnreadableVersionWarning($"'diagrid version' exited with code {result.ExitCode}"));
+            return;
+        }
+
+        if (!CatalystCli.EnsureSupportedVersion(arguments, result.StdOut))
+        {
+            logger.LogWarning("{Message}", CatalystCli.UnreadableVersionWarning("'diagrid version' printed no recognisable 'Version:' line"));
+        }
     }
 
     internal static string[] BuildWhoamiArgs() => ["whoami"];

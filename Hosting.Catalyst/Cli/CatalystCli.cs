@@ -8,13 +8,15 @@ namespace Diagrid.Aspire.Hosting.Catalyst.Cli;
 internal static class CatalystCli
 {
     /// <summary>
-    /// The oldest CLI release this integration is known to work with.
-    /// This floor is EMPIRICALLY derived, not spec-derived: the CLI's changelog does not mention when
-    /// <c>--ignore-if-exists</c> arrived, so there is no documented introduction version to look up. 1.85.0 is the
-    /// oldest release actually exercised, and it carries everything the integration uses: <c>app create</c> and
+    /// A LOWER BOUND on the CLI release, not a verified-compatible list. It is empirically derived, not
+    /// spec-derived: the CLI changelog documents no introduction version for <c>--ignore-if-exists</c>.
+    /// 1.85.0 is the oldest version observed to carry every command and flag used here (<c>app create</c>,
     /// <c>agent create</c>, <c>--ignore-if-exists</c> on <c>project create</c> and <c>app create</c>,
-    /// <c>dev run --id</c>, and <c>--label</c> / <c>--annotation</c> on <c>app create</c>. Raise it only after
-    /// measuring, and lower it only after testing against the older release.
+    /// <c>dev run --id</c>, <c>--label</c> / <c>--annotation</c> on <c>app create</c>). The probe was done once and is
+    /// not reproducible now (the local CLI has since been upgraded), so this is not a claim of current verification.
+    /// The floor is deliberately permissive: a CLI that is too old but slips under it fails loudly at the first
+    /// create with the CLI's own "unknown flag" error, rather than being silently rejected here.
+    /// Note: <c>diagrid version</c> has no <c>--output json</c> (unknown flag), so its plain output is read instead.
     /// </summary>
     internal const string MinimumVersion = "1.85.0";
 
@@ -36,13 +38,9 @@ internal static class CatalystCli
         return new(arguments, exitCode, cleanedStdErr, message);
     }
 
-    internal static CatalystCliException UnreadableVersion(IReadOnlyList<string> arguments)
-        => new(
-            arguments,
-            0,
-            string.Empty,
-            $"Could not work out which version of the diagrid CLI is installed (needs {MinimumVersion} or newer): "
-                + $"'diagrid version' printed no recognisable 'Version:' line. Upgrade the CLI ({DocsUrl}) and try again.");
+    internal static string UnreadableVersionWarning(string detail)
+        => $"Could not work out which version of the diagrid CLI is installed ({detail}), so the minimum-version check ({MinimumVersion}) was skipped. "
+            + $"Continuing anyway: if a command later fails with an unknown flag, upgrade the CLI ({DocsUrl}).";
 
     internal static CatalystCliException TooOld(IReadOnlyList<string> arguments, string found)
         => new(
@@ -76,11 +74,17 @@ internal static class CatalystCli
         return null;
     }
 
-    /// <summary>Throws an actionable exception naming the missing capability when <paramref name="stdOut"/> reports a CLI below the floor.</summary>
-    internal static void EnsureSupportedVersion(IReadOnlyList<string> arguments, string stdOut)
+    /// <summary>
+    /// Throws an actionable exception naming the missing capability when <paramref name="stdOut"/> reports a CLI below the floor.
+    /// Returns false, without throwing, when no version could be read: the check exists only to give a better error
+    /// message, so an unrecognised output format must not become an outage. A real capability gap still surfaces at the
+    /// first create, as the CLI's own "unknown flag" error.
+    /// </summary>
+    internal static bool EnsureSupportedVersion(IReadOnlyList<string> arguments, string stdOut)
     {
         var version = ParseVersion(stdOut, out var text);
-        if (version is null) throw UnreadableVersion(arguments);
+        if (version is null) return false;
         if (version < Version.Parse(MinimumVersion)) throw TooOld(arguments, text!);
+        return true;
     }
 }
