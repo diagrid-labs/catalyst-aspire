@@ -57,6 +57,34 @@ public class ResourceBuilderTests
     }
 
     [Fact]
+    public void Dev_run_argv_for_a_resource_with_an_http_endpoint_is_exactly_as_expected()
+    {
+        var builder = DistributedApplication.CreateBuilder();
+        var catalyst = builder.AddCatalystProject("demo");
+        builder.AddContainer("api", "img").WithHttpEndpoint(targetPort: 8080).WithCatalystApp();
+
+        Assert.Equal(
+            [
+                "dev", "run", "--no-color=true", "--approve", "--project", "demo", "--id", "api",
+                "--app-port", "{api.bindings.http.port}", "--skip-managed-kv", "--skip-managed-pubsub",
+            ],
+            DevRunArgsFor(catalyst.Resource, "api"));
+    }
+
+    [Fact]
+    public void Dev_run_argv_for_a_resource_without_an_http_endpoint_is_exactly_as_expected()
+    {
+        var (project, _) = BuildWorkerWithNoEndpoint();
+
+        Assert.Equal(
+            [
+                "dev", "run", "--no-color=true", "--approve", "--project", "demo", "--id", "worker",
+                "--skip-managed-kv", "--skip-managed-pubsub",
+            ],
+            DevRunArgsFor(project));
+    }
+
+    [Fact]
     public void Rejects_an_invalid_resource_name_at_registration_naming_the_resource()
     {
         var builder = DistributedApplication.CreateBuilder();

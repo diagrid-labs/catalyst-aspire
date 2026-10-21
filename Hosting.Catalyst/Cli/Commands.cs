@@ -45,7 +45,10 @@ internal static class Commands
     /// <summary>
     ///     <c>subscription update</c> sends the declared values wholesale (the AppHost is the source of truth): topic,
     ///     route, component and scopes always, and <c>--bulk</c> explicitly true or false so a subscription can leave bulk
-    ///     mode. An empty scope list is sent as <c>[]</c>. The bulk count and duration are sent only when declared: the
+    ///     mode. An empty scope list is sent as <c>[]</c>: that convention is verified for <c>component update --scopes</c>
+    ///     (documented as "Use [] for clearing up scopes") but only ASSUMED for <c>subscription update --scopes</c>, which
+    ///     documents no such convention. Unreachable from the public API today (<c>WithSubscription</c> always scopes to
+    ///     the app), but reachable by a third party calling <c>UpsertSubscription</c>. The bulk count and duration are sent only when declared: the
     ///     CLI offers no way to unset them.
     /// </summary>
     internal static string[] BuildUpdateSubscriptionArgs(string name, CreateSubscriptionOptions options)

@@ -76,4 +76,52 @@ public class ErrorSurfacingTests
 
         await Commands.CreateProject("demo", new(), default);
     }
+
+    [Fact(Timeout = 30_000)]
+    public async Task A_mid_provision_failure_faults_the_pending_task_completion_sources_instead_of_leaving_them_pending()
+    {
+        using var fake = new FakeDiagridFixture();
+        fake.SetScenario(new Scenario
+        {
+            Responses =
+            [
+                new() { ArgsMatch = "app create", ExitCode = 1, StdErr = "Error: boom\n" },
+                .. HandlerHarness.PreflightPasses(),
+                new() { ArgsMatch = "project get", StdOut = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", "project-get-ready.json")) },
+                new() { StdOut = "{}" },
+            ],
+        });
+        var (project, handler, _) = HandlerHarness.Build();
+        var a = new TaskCompletionSource<Diagrid.Aspire.Hosting.Catalyst.Model.AppDetails>();
+        var b = new TaskCompletionSource<Diagrid.Aspire.Hosting.Catalyst.Model.AppDetails>();
+        project.Identities.Add(new Aspire.Hosting.ApplicationModel.ContainerResource("a"), new(Diagrid.Aspire.Hosting.Catalyst.Model.IdentityKind.App, a));
+        project.Identities.Add(new Aspire.Hosting.ApplicationModel.ContainerResource("b"), new(Diagrid.Aspire.Hosting.Catalyst.Model.IdentityKind.App, b));
+
+        await Assert.ThrowsAsync<CatalystCliException>(() => handler.ProvisionCatalyst(default));
+
+        // The project endpoints were resolved before the failure, so only the identities are still pending.
+        Assert.True(a.Task.IsFaulted, "a failed identity's TCS must be faulted, not left pending");
+        Assert.True(b.Task.IsFaulted, "a not-yet-provisioned identity's TCS must be faulted, not left pending");
+        await Assert.ThrowsAsync<CatalystCliException>(() => b.Task);
+    }
+
+    [Fact(Timeout = 30_000)]
+    public async Task A_project_create_failure_faults_the_endpoint_task_completion_sources()
+    {
+        using var fake = new FakeDiagridFixture();
+        fake.SetScenario(new Scenario
+        {
+            Responses =
+            [
+                new() { ArgsMatch = "project create", ExitCode = 1, StdErr = "Error: boom\n" },
+                .. HandlerHarness.PreflightPasses(),
+            ],
+        });
+        var (project, handler, _) = HandlerHarness.Build();
+
+        await Assert.ThrowsAsync<CatalystCliException>(() => handler.ProvisionCatalyst(default));
+
+        Assert.True(project.HttpEndpoint.Task.IsFaulted);
+        Assert.True(project.GrpcEndpoint.Task.IsFaulted);
+    }
 }

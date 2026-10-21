@@ -58,7 +58,7 @@ For create-only resources, a change you make in the AppHost is **ignored** if th
 - **Bulk subscriptions.** The longer `WithSubscription(name, component, topic, route, bulk, bulkMaxMessagesCount, bulkMaxAwaitDuration)` overload sets the bulk options. Pass `null` to use the Catalyst default.
 - **The dashboard link follows `DIAGRID_URL`.** It used to be hardcoded to `catalyst.r1.diagrid.io`. It is now derived from the same `DIAGRID_URL` variable and rules as the Diagrid CLI, so for the default API URL it points at `catalyst.diagrid.io`.
 - **The `diagrid dev run` proxy starts in the AppHost's directory** instead of `.`.
-- **The Diagrid CLI is checked up front.** Provisioning checks the installed `diagrid` version and fails if it is older than 1.85.0, the oldest version this integration was verified against. If the version cannot be read, the check is skipped with a warning instead.
+- **The Diagrid CLI is checked up front.** Provisioning checks the installed `diagrid` version and fails if it is older than 1.85.0, the oldest version this integration claims support for. If the version cannot be read, the check is skipped with a warning instead.
 - **Resource names are validated.** A resource name that is not a valid Catalyst name is rejected, as is one whose derived `{name}-catalyst-proxy` resource would exceed Aspire's 64-character limit (so names over 49 characters). Resources with no HTTP endpoint, such as workflow-only workers, are now supported.
 - **Duplicate subscriptions are rejected.** Declaring the same app, component and topic under two subscription names now throws, because it would deliver the topic twice. Reusing one subscription name for a different app, component or topic is rejected too.
 - **A component that collides with a managed store is detected.** If a component already exists under the store's name, the CLI's create can succeed without creating a store. Provisioning now notices and fails, naming the component, instead of carrying on.
@@ -101,7 +101,7 @@ In the `AppHost` demo, the OSS side of the `USE_CATALYST` switch keeps workflow 
 - `GetProjectDetails` is replaced by `TryGetProjectDetails` and `WaitForProjectReady`.
 - `Init` gained an `ILogger` parameter.
 - `CheckKvStoreExists` is replaced by `KvStoreExists` and `PubSubExists`.
-- `CreateComponent` is now `UpsertComponent`.
+- `CreateComponent` is now `UpsertComponent`, and it gained a third parameter, `bool isManagedServiceComponent`.
 - `CreateSubscription` is now `UpsertSubscription`.
 - `CreateAgent` and `GetAgentDetails` are new.
 - `CreateAppOptions` is now `CreateIdentityOptions`. Properties were renamed (for example `AppEndpoint` to `Endpoint`) and `Project` is now required.

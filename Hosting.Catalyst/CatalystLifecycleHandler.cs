@@ -35,10 +35,25 @@ internal class CatalystLifecycleHandler(
         await SelectProjectAsync(cancellationToken);
         await LoadProjectDetailsAsync(cancellationToken);
         await EnsureApplicationsAsync(cancellationToken);
-        await EnsureServicesAsync(cancellationToken, cancellationToken);
+        await EnsureServicesAsync(cancellationToken);
         await EnsureComponentsAsync(cancellationToken);
         await EnsureSubscriptionsAsync(cancellationToken);
         await CompleteProvisioningAsync();
+    }
+
+    /// <summary>
+    ///     Faults every still-pending endpoint and identity TCS so anything awaiting them fails fast
+    ///     instead of hanging forever when provisioning fails part-way.
+    /// </summary>
+    private void FaultPending(Exception ex)
+    {
+        catalystProject.HttpEndpoint.TrySetException(ex);
+        catalystProject.GrpcEndpoint.TrySetException(ex);
+
+        foreach (var identity in catalystProject.Identities.Values)
+        {
+            identity.Details.TrySetException(ex);
+        }
     }
 
     private void LogWelcomeMessage()
@@ -67,6 +82,7 @@ internal class CatalystLifecycleHandler(
         catch (Exception ex)
         {
             logger.LogError(ex, ex.Message);
+            FaultPending(ex);
 
             await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
             {
@@ -96,6 +112,7 @@ internal class CatalystLifecycleHandler(
         catch (Exception ex)
         {
             logger.LogError(ex, ex.Message);
+            FaultPending(ex);
 
             await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
             {
@@ -125,6 +142,7 @@ internal class CatalystLifecycleHandler(
         catch (Exception ex)
         {
             logger.LogError(ex, ex.Message);
+            FaultPending(ex);
 
             await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
             {
@@ -164,6 +182,7 @@ internal class CatalystLifecycleHandler(
         catch (Exception ex)
         {
             logger.LogError(ex, ex.Message);
+            FaultPending(ex);
 
             await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
             {
@@ -208,6 +227,7 @@ internal class CatalystLifecycleHandler(
             catch (Exception ex)
             {
                 logger.LogError(ex, ex.Message);
+                FaultPending(ex);
 
                 await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
                 {
@@ -219,10 +239,7 @@ internal class CatalystLifecycleHandler(
         }
     }
 
-    private async Task EnsureServicesAsync(
-        CancellationToken originalCancellationToken,
-        CancellationToken cancellationToken
-    )
+    private async Task EnsureServicesAsync(CancellationToken cancellationToken)
     {
         await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
         {
@@ -243,6 +260,7 @@ internal class CatalystLifecycleHandler(
             catch (Exception ex)
             {
                 logger.LogError(ex, ex.Message);
+                FaultPending(ex);
 
                 await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
                 {
@@ -267,6 +285,7 @@ internal class CatalystLifecycleHandler(
             catch (Exception ex)
             {
                 logger.LogError(ex, ex.Message);
+                FaultPending(ex);
 
                 await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
                 {
@@ -303,6 +322,7 @@ internal class CatalystLifecycleHandler(
             catch (Exception ex)
             {
                 logger.LogError(ex, ex.Message);
+                FaultPending(ex);
 
                 await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
                 {
@@ -335,6 +355,7 @@ internal class CatalystLifecycleHandler(
             catch (Exception ex)
             {
                 logger.LogError(ex, ex.Message);
+                FaultPending(ex);
 
                 await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
                 {

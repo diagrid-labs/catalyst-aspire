@@ -62,7 +62,7 @@ jobs:
         if: steps.gate.outputs.enabled == 'true'
         run: |
           brew install diagridio/tap/diagrid
-          diagrid version
+          diagrid version --no-color=true
 
       # Build first, with the real HOME and no credential in reach.
       - name: "Build"
@@ -122,8 +122,8 @@ jobs:
           XDG_CONFIG_HOME: ${{ runner.temp }}/catalyst-home/.config
         run: |
           mkdir -p tests/fixtures/cli
-          diagrid app schema --output json > tests/fixtures/cli/app-schema.json
-          diagrid agent schema --output json > tests/fixtures/cli/agent-schema.json
+          diagrid app schema --output json --no-color=true > tests/fixtures/cli/app-schema.json
+          diagrid agent schema --output json --no-color=true > tests/fixtures/cli/agent-schema.json
           {
             for cmd in "project create" "project get" "project delete" "app create" "app get" "agent create" "agent get" \
                        "appid get" "component create" "pubsub create" "kv create" "subscription create" "subscription update"; do

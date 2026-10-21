@@ -1,5 +1,5 @@
 {
-  "_capturedFrom": "diagrid CLI 1.85.0, 2026-10-21 (hand-built from the CLI golden structure, not captured from a live run; Task 16 re-captures from a real CLI). status.endpoints is deliberately absent: the CLI omits it until the project is serving.",
+  "_capturedFrom": "hand-built, not captured from a real CLI run: modelled on the CLI golden structure, 2026-10-21; the version number 1.85.0 is a claimed floor, not a capture record; Task 16 re-captures from a real CLI. status.endpoints is deliberately absent: the CLI omits it until the project is serving.",
   "apiVersion": "cra.diagrid.io/v1beta1",
   "kind": "Project",
   "metadata": {

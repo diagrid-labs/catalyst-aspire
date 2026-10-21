@@ -220,6 +220,7 @@ public static class ResourceBuilderExtensions
         var args = new List<object>
         {
             "dev", "run",
+            "--no-color=true",
             "--approve",
             "--project", projectName,
             "--id", id,

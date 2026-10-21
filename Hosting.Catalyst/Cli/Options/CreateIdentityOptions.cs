@@ -20,7 +20,9 @@ public record CreateIdentityOptions
     public int? AppHealthProbeTimeout { get; init; }
     public int? AppHealthThreshold { get; init; }
     public int? AppChannelTimeoutSeconds { get; init; }
+    /// <summary>Sent as <c>--label</c> (pflag <c>stringToString</c>, which splits on commas: an embedded <c>=</c> survives, but a comma in a value would be mis-split).</summary>
     public IDictionary<string, string> Labels { get; init; } = new Dictionary<string, string>();
+    /// <summary>Sent as <c>--annotation</c> (pflag <c>stringToString</c>, which splits on commas: an embedded <c>=</c> survives, but a comma in a value would be mis-split).</summary>
     public IDictionary<string, string> Annotations { get; init; } = new Dictionary<string, string>();
     public IList<string> EnableWorkflowArchive { get; init; } = [];
     public IList<string> EnableWorkflowNotifications { get; init; } = [];

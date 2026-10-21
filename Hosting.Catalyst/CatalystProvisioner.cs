@@ -7,7 +7,12 @@ using Diagrid.Aspire.Hosting.Catalyst.Model;
 namespace Diagrid.Aspire.Hosting.Catalyst;
 
 /// <summary>
-///     A swappable abstraction for interacting with Catalyst.
+///     Models the <b>Diagrid CLI's command surface</b> (project, app, agent, pubsub, kv, component and subscription
+///     commands) and nothing more general: it is not a provisioning abstraction, so do not implement it expecting to
+///     target a different backend. Member shapes (including the several conventions for passing the project) follow
+///     the CLI commands they wrap. Some members exist for implementers and are not called by
+///     <c>CatalystLifecycleHandler</c> itself: <see cref="TryGetProjectDetails"/>, <see cref="KvStoreExists"/> and
+///     <see cref="PubSubExists"/>.
 /// </summary>
 public interface CatalystProvisioner
 {
