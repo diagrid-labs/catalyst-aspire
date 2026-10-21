@@ -78,6 +78,12 @@ public class SubscriptionTests
         Assert.StartsWith("test-api-pubsub-ttt", a, StringComparison.Ordinal);
     }
 
+    // Golden value: the name must be identical across processes and runs. A per-process hash (string.GetHashCode,
+    // HashCode.Combine) would make every launch miss the existing subscription and create another, delivering N times.
+    [Fact]
+    public void A_truncated_name_is_pinned_to_a_golden_value()
+        => Assert.Equal("test-api-pubsub-tttttttttttttttttttttttttttttttttttttt-53fb7769", CatalystNames.SubscriptionName("test-api", "pubsub", new string('t', 80) + "-one"));
+
     [Fact]
     public void Truncation_never_leaves_a_trailing_dash_before_the_hash()
     {
@@ -110,6 +116,7 @@ public class SubscriptionTests
         Assert.Contains("'test-api'", ex.Message, StringComparison.Ordinal);
         Assert.Contains("'pubsub'", ex.Message, StringComparison.Ordinal);
         Assert.Contains("'orders'", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("already subscribes", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -121,6 +128,26 @@ public class SubscriptionTests
         Assert.Contains("'test-api'", ex.Message, StringComparison.Ordinal);
         Assert.Contains("'events'", ex.Message, StringComparison.Ordinal);
         Assert.Contains("'orders'", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("already subscribes", ex.Message, StringComparison.Ordinal);
+    }
+
+    // Mutation: scan only by name -> the second, differently named subscription is accepted and the topic delivers twice.
+    [Fact]
+    public void The_same_app_component_and_topic_under_two_declared_names_is_a_duplicate()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            Build(b => b.WithSubscription("s1", "events", "orders", "/a").WithSubscription("s2", "events", "orders", "/b")));
+
+        Assert.Contains("already subscribes", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("'s1'", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_same_topic_on_a_different_component_or_app_is_not_a_duplicate()
+    {
+        var project = Build(b => b.WithSubscription("s1", "events", "orders", "/a").WithSubscription("s2", "other", "orders", "/b"));
+
+        Assert.Equal(2, project.Subscriptions.Count);
     }
 
     [Fact]
@@ -130,6 +157,7 @@ public class SubscriptionTests
             Build(b => b.WithSubscription("order.created", "/a").WithSubscription("order-created", "/b")));
 
         Assert.Contains("order.created", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("already used", ex.Message, StringComparison.Ordinal);
         Assert.Contains("order-created", ex.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("already subscribes", ex.Message, StringComparison.Ordinal);
     }

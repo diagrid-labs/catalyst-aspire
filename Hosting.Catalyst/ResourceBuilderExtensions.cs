@@ -226,16 +226,23 @@ public static class ResourceBuilderExtensions
         
         var appName = resourceBuilder.Resource.Name;
 
-        if (catalystProject.Subscriptions.TryGetValue(name, out var existing))
-        {
-            var sameTriple = existing.Scopes.Contains(appName) && existing.Component == component && existing.Topic == topic;
+        // Same app, component and topic is a duplicate whatever it is named: two subscriptions would deliver the topic twice.
+        var duplicate = catalystProject.Subscriptions.Values.FirstOrDefault(existing =>
+            existing.Scopes.Contains(appName) && existing.Component == component && existing.Topic == topic);
 
+        if (duplicate is not null)
+        {
             throw new ArgumentException(
-                sameTriple
-                    ? $"The app '{appName}' already subscribes to topic '{topic}' on component '{component}' (subscription '{name}'). "
-                        + "Each app, component and topic combination can have only one subscription."
-                    : $"The subscription name '{name}' is already used for topic '{existing.Topic}' on component '{existing.Component}'; "
-                        + $"it cannot also be used for app '{appName}', component '{component}', topic '{topic}'. Give one of them a different name.",
+                $"The app '{appName}' already subscribes to topic '{topic}' on component '{component}' (subscription '{duplicate.Name}'). "
+                + "Each app, component and topic combination can have only one subscription.",
+                nameof(topic));
+        }
+
+        if (catalystProject.Subscriptions.TryGetValue(name, out var clash))
+        {
+            throw new ArgumentException(
+                $"The subscription name '{name}' is already used for topic '{clash.Topic}' on component '{clash.Component}'; "
+                + $"it cannot also be used for app '{appName}', component '{component}', topic '{topic}'. Give one of them a different name.",
                 nameof(name));
         }
 
