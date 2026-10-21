@@ -4,6 +4,12 @@ public record CreateProjectOptions
 {
     public string? Region { get; init; }
 
+    public string? RegionGroup { get; init; }
+
+    public string? GlobalIdMaxBodySize { get; init; }
+
+    public bool? EnableWorkflowHistorySigning { get; init; }
+
     public bool DeployManagedPubsub { get; init; } = false;
 
     public bool DeployManagedKv { get; init; } = false;

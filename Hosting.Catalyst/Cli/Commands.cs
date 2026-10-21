@@ -65,7 +65,21 @@ internal static class Commands
 
         options ??= new();
 
+        if (!string.IsNullOrWhiteSpace(options.Region) && !string.IsNullOrWhiteSpace(options.RegionGroup))
+        {
+            throw new ArgumentException(
+                "--region and --region-group are mutually exclusive; set only one of Region or RegionGroup.",
+                nameof(options));
+        }
+
         AddOptionalArgument(arguments, "--region", options.Region);
+        AddOptionalArgument(arguments, "--region-group", options.RegionGroup);
+        AddOptionalArgument(arguments, "--global-id-max-body-size", options.GlobalIdMaxBodySize);
+        if (options.EnableWorkflowHistorySigning is { } signing)
+        {
+            arguments.Add($"--enable-workflow-history-signing={(signing ? "true" : "false")}");
+        }
+
         arguments.Add($"--deploy-managed-pubsub={(options.DeployManagedPubsub ? "true" : "false")}");
         arguments.Add($"--deploy-managed-kv={(options.DeployManagedKv ? "true" : "false")}");
         AddFlagArgument(arguments, "--enable-managed-workflow", options.EnableManagedWorkflow);

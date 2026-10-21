@@ -1,3 +1,4 @@
+using Diagrid.Aspire.Hosting.Catalyst.Cli.Options;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,13 +29,20 @@ public class CliCatalystProvisioner : CatalystProvisioner
 
     public async Task CreateProject(string projectName, ProjectDescriptor descriptor, CancellationToken cancellationToken)
     {
-        await Commands.CreateProject(projectName, new()
-        {
-            EnableManagedWorkflow = descriptor.EnableManagedWorkflow,
-            DeployManagedKv = false,
-            DeployManagedPubsub = false,
-        }, cancellationToken);
+        await Commands.CreateProject(projectName, ToCreateOptions(descriptor), cancellationToken);
     }
+
+    internal static CreateProjectOptions ToCreateOptions(ProjectDescriptor descriptor) => new()
+    {
+        EnableManagedWorkflow = descriptor.EnableManagedWorkflow,
+        Region = descriptor.Region,
+        RegionGroup = descriptor.RegionGroup,
+        DeployManagedKv = descriptor.DeployManagedKv,
+        DeployManagedPubsub = descriptor.DeployManagedPubsub,
+        GlobalIdMaxBodySize = descriptor.GlobalIdMaxBodySize,
+        EnableWorkflowHistorySigning = descriptor.EnableWorkflowHistorySigning,
+        DisableAppTunnels = descriptor.DisableAppTunnels,
+    };
 
     public async Task UseProject(string projectName, CancellationToken cancellationToken)
     {
