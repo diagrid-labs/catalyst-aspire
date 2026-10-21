@@ -34,11 +34,22 @@
     <Compile Include="..\FakeDiagrid\Scenario.cs" Link="Scenario.cs" />
   </ItemGroup>
 
-  <ItemGroup>
-    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
-      <_Parameter1>FakeDiagridDir</_Parameter1>
-      <_Parameter2>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\FakeDiagrid\bin\$(Configuration)\net10.0\'))</_Parameter2>
-    </AssemblyAttribute>
-  </ItemGroup>
+  <!-- Locate the fake by asking its own project where it builds, so the path follows -o, ArtifactsPath and
+       OutputPath overrides and never depends on a hand-written separator (a backslash is a literal filename
+       character on Linux). The directory is handed to the tests as assembly metadata. -->
+  <Target Name="EmbedFakeDiagridDir" BeforeTargets="GetAssemblyAttributes">
+    <MSBuild Projects="..\FakeDiagrid\FakeDiagrid.csproj" Targets="GetTargetPath" SkipNonexistentTargets="false">
+      <Output TaskParameter="TargetOutputs" ItemName="_FakeDiagridTarget" />
+    </MSBuild>
+    <PropertyGroup>
+      <_FakeDiagridDir>$([System.IO.Path]::GetDirectoryName('%(_FakeDiagridTarget.FullPath)'))</_FakeDiagridDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>FakeDiagridDir</_Parameter1>
+        <_Parameter2>$(_FakeDiagridDir)</_Parameter2>
+      </AssemblyAttribute>
+    </ItemGroup>
+  </Target>
 
 </Project>

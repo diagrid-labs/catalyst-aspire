@@ -13,16 +13,18 @@ namespace Diagrid.Aspire.Test.AppHost;
 /// </summary>
 public static class DemoWiring
 {
+    public const string DefaultProjectName = "catalyst-aspire-demo";
+
     public const string SubscriptionRoute = "/orders/received";
 
-    public static IResourceBuilder<ProjectResource> Configure<TProject>(IDistributedApplicationBuilder builder, bool useCatalyst)
+    public static IResourceBuilder<ProjectResource> Configure<TProject>(IDistributedApplicationBuilder builder, bool useCatalyst, string projectName = DefaultProjectName)
         where TProject : IProjectMetadata, new()
     {
         var api = builder.AddProject<TProject>("test-api");
 
         if (useCatalyst)
         {
-            var catalyst = builder.AddCatalystProject("catalyst-aspire-demo", new() { EnableManagedWorkflow = true })
+            var catalyst = builder.AddCatalystProject(projectName, new() { EnableManagedWorkflow = true })
                 .WithCatalystKvStore()
                 .WithCatalystPubSub();
 

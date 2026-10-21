@@ -65,18 +65,35 @@ public sealed class FakeDiagridFixture : IDisposable
     {
         get
         {
-            if (!File.Exists(_recordPath)) return [];
-            // FileShare.ReadWrite so a concurrently appending fake is never denied.
-            using var fs = new FileStream(_recordPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var reader = new StreamReader(fs);
-            var list = new List<string[]>();
-            string? line;
-            while ((line = reader.ReadLine()) is not null)
+            // The fake takes an exclusive lock while appending (required on Linux, where .NET has no O_APPEND), so a
+            // read that lands mid-write is denied: retry briefly rather than fail.
+            for (var attempt = 0; ; attempt++)
             {
-                if (line.Length > 0) list.Add(JsonSerializer.Deserialize<string[]>(line)!);
+                try
+                {
+                    return ReadInvocations();
+                }
+                catch (IOException) when (attempt < 200)
+                {
+                    Thread.Sleep(10);
+                }
             }
-            return list;
         }
+    }
+
+    private List<string[]> ReadInvocations()
+    {
+        if (!File.Exists(_recordPath)) return [];
+        // FileShare.ReadWrite so a concurrently appending fake is never denied.
+        using var fs = new FileStream(_recordPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(fs);
+        var list = new List<string[]>();
+        string? line;
+        while ((line = reader.ReadLine()) is not null)
+        {
+            if (line.Length > 0) list.Add(JsonSerializer.Deserialize<string[]>(line)!);
+        }
+        return list;
     }
 
     public void Reset()

@@ -1,0 +1,134 @@
+name: "Nightly (real Catalyst)"
+
+# Runs the opt-in smoke suite and re-captures the CLI fixtures against a real Catalyst account.
+# It is NOT a required check and never gates a merge: a failure opens an issue, fixture drift opens a PR.
+# Skipped entirely when the CATALYST_API_KEY secret is absent (forks, or a repo without the account).
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+# One run at a time against the account.
+concurrency:
+  group: nightly-catalyst
+  cancel-in-progress: false
+
+jobs:
+  nightly:
+    name: "Smoke tests and fixture capture"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CATALYST_API_KEY: ${{ secrets.CATALYST_API_KEY }}
+
+    steps:
+      - name: "Gate on the API key"
+        id: gate
+        run: |
+          if [ -z "$CATALYST_API_KEY" ]; then
+            echo "CATALYST_API_KEY is not set; skipping the nightly run."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: "Checkout"
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+
+      - name: "Setup dotnet"
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.*.*
+
+      - name: "Install the diagrid CLI"
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          brew install diagridio/tap/diagrid
+          diagrid version
+
+      - name: "Log in"
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          diagrid login --api-key "$CATALYST_API_KEY" --no-browser
+          diagrid whoami
+
+      - name: "Build"
+        if: steps.gate.outputs.enabled == 'true'
+        run: dotnet build tests/Hosting.Catalyst.SmokeTests
+
+      - name: "Smoke tests"
+        id: smoke
+        if: steps.gate.outputs.enabled == 'true'
+        continue-on-error: true
+        env:
+          CATALYST_SMOKE_ENABLED: "true"
+        run: dotnet test tests/Hosting.Catalyst.SmokeTests --no-build --filter "FullyQualifiedName~SmokeTests.SmokeTests"
+
+      - name: "Capture fixtures"
+        id: capture
+        if: steps.gate.outputs.enabled == 'true'
+        continue-on-error: true
+        env:
+          CATALYST_CAPTURE_FIXTURES_DIR: ${{ github.workspace }}/tests/fixtures
+        run: dotnet test tests/Hosting.Catalyst.SmokeTests --no-build --filter "FullyQualifiedName~FixtureCapture"
+
+      # The embedded OpenAPI spec and the help text need no project; a change in either is flag or field drift.
+      - name: "Capture CLI schemas and help"
+        id: schemas
+        if: steps.gate.outputs.enabled == 'true'
+        continue-on-error: true
+        run: |
+          mkdir -p tests/fixtures/cli
+          diagrid app schema --output json > tests/fixtures/cli/app-schema.json
+          diagrid agent schema --output json > tests/fixtures/cli/agent-schema.json
+          {
+            for cmd in "project create" "project get" "project delete" "app create" "app get" "agent create" "agent get" \
+                       "appid get" "component create" "pubsub create" "kv create" "subscription create" "subscription update"; do
+              echo "## diagrid $cmd --help"
+              diagrid $cmd --help --no-color
+              echo
+            done
+          } > tests/fixtures/cli/help.txt
+
+      # Backstop for a runner killed mid-test: remove smoke projects older than three hours. Prefix-scoped.
+      - name: "Sweep leaked smoke projects"
+        if: always() && steps.gate.outputs.enabled == 'true'
+        continue-on-error: true
+        run: |
+          diagrid project list --output json --no-color \
+            | jq -r '.. | objects | select((.metadata.name? // "") | startswith("aspire-smoke-"))
+                     | select((.metadata.createdAt? // "1970-01-01T00:00:00Z") | sub("\\.[0-9]+";"") | fromdateiso8601 < (now - 10800))
+                     | .metadata.name' \
+            | while read -r name; do
+                echo "Deleting leaked project $name"
+                diagrid project delete "$name" --wait --yes
+              done
+
+      - name: "Open a PR when fixtures drifted"
+        if: steps.gate.outputs.enabled == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/fixture-drift
+          add-paths: tests/fixtures
+          commit-message: "test: re-capture fixtures from the diagrid CLI"
+          title: "test: fixture drift from the diagrid CLI"
+          body: |
+            The nightly run re-captured `tests/fixtures` from a real diagrid CLI and they differ from what is committed.
+            The diff is the drift signal: read it, then fix the integration or accept the new shape.
+            Tokens, names, timestamps and ids are normalised on capture, so a diff here is a real change.
+
+      - name: "Open an issue when the smoke tests fail"
+        if: steps.gate.outputs.enabled == 'true' && (steps.smoke.outcome == 'failure' || steps.capture.outcome == 'failure')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Nightly Catalyst run failed ($(date -u +%Y-%m-%d))" \
+            --body "Smoke: ${{ steps.smoke.outcome }}. Fixture capture: ${{ steps.capture.outcome }}. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

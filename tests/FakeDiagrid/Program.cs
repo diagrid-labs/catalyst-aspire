@@ -18,12 +18,14 @@ var recordPath = Environment.GetEnvironmentVariable("FAKE_DIAGRID_RECORD");
 if (!string.IsNullOrEmpty(recordPath))
 {
     var line = JsonSerializer.Serialize(args) + "\n";
-    // Retry briefly: concurrent invocations may contend for the file.
+    // FileShare.None is load-bearing on Linux: .NET seeks to the end at open (no O_APPEND) and only takes an
+    // exclusive flock for FileShare.None, so with FileShare.Read two writers raced and lost lines. Contention
+    // surfaces as an IOException, which the retry below absorbs.
     for (var attempt = 0; ; attempt++)
     {
         try
         {
-            using var fs = new FileStream(recordPath, FileMode.Append, FileAccess.Write, FileShare.Read);
+            using var fs = new FileStream(recordPath, FileMode.Append, FileAccess.Write, FileShare.None);
             fs.Write(new UTF8Encoding(false).GetBytes(line));
             break;
         }

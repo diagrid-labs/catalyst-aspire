@@ -1,0 +1,48 @@
+name: "CI"
+
+# The offline suites: no secrets, no network beyond NuGet, no Catalyst account. The diagrid CLI is replaced by
+# tests/FakeDiagrid. Runs on both platforms because the package is consumed on both and the fake's location,
+# executable bit and PATH handling differ between them. Make this check required for merging.
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: "Test (${{ matrix.os }})"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Setup dotnet"
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.*.*
+
+      - name: "Build"
+        run: dotnet build
+
+      - name: "Unit tests"
+        run: dotnet test tests/Hosting.Catalyst.Tests --no-build
+
+      - name: "Integration tests"
+        run: dotnet test tests/Hosting.Catalyst.IntegrationTests --no-build
+
+      # Proves the opt-in suite skips without CATALYST_SMOKE_ENABLED: a skip, not a failure, and no account touched.
+      - name: "Smoke tests (must skip)"
+        run: dotnet test tests/Hosting.Catalyst.SmokeTests --no-build
