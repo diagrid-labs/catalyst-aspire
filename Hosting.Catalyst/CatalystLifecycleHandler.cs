@@ -148,8 +148,8 @@ internal class CatalystLifecycleHandler(
         {
             try
             {
-                await provisioner.CreateApp(pair.Key.Name, cancellationToken);
-                var app = await provisioner.GetAppDetails(pair.Key.Name, cancellationToken);
+                await provisioner.CreateApp(pair.Key.Name, catalystProject.ProjectName, cancellationToken);
+                var app = await provisioner.GetAppDetails(pair.Key.Name, catalystProject.ProjectName, cancellationToken);
 
                 pair.Value.SetResult(app);
             }

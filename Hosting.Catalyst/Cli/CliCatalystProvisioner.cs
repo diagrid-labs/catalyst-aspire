@@ -15,21 +15,15 @@ public class CliCatalystProvisioner : CatalystProvisioner
 
     public async Task CreateSubscription(string projectName, SubscriptionDescriptor descriptor, CancellationToken cancellationToken)
     {
-        try
+        // subscription create has no --ignore-if-exists, so a failure here is a real failure: let it propagate.
+        await Commands.CreateSubscription(descriptor.Name, new()
         {
-            await Commands.CreateSubscription(descriptor.Name, new()
-            {
-                Project = projectName,
-                Component = descriptor.Component,
-                Topic = descriptor.Topic,
-                Route = descriptor.Route,
-                Scopes = descriptor.Scopes,
-            }, cancellationToken);
-        }
-        catch
-        {
-            // todo: Would like a silent/idempotent create.
-        }
+            Project = projectName,
+            Component = descriptor.Component,
+            Topic = descriptor.Topic,
+            Route = descriptor.Route,
+            Scopes = descriptor.Scopes,
+        }, cancellationToken);
     }
 
     public async Task CreateProject(string projectName, ProjectDescriptor descriptor, CancellationToken cancellationToken)
@@ -58,25 +52,19 @@ public class CliCatalystProvisioner : CatalystProvisioner
         };
     }
 
-    public async Task CreateApp(string name, CancellationToken cancellationToken)
+    public async Task CreateApp(string name, string projectName, CancellationToken cancellationToken)
     {
-        try
-        {
-            await Commands.CreateApp(name, cancellationToken: cancellationToken);
-        }
-        catch
-        {
-            // todo: Would like a silent/idempotent create.
-        }
+        // --ignore-if-exists (the CreateIdentityOptions default) makes this idempotent.
+        await Commands.CreateIdentity(IdentityKind.App, name, new() { Project = projectName }, cancellationToken);
     }
 
-    public async Task<AppDetails> GetAppDetails(string name, CancellationToken cancellationToken)
+    public async Task<AppDetails> GetAppDetails(string name, string projectName, CancellationToken cancellationToken)
     {
-        var appDetails = await Commands.GetAppDetails(name, cancellationToken);
+        var details = await Commands.GetIdentityDetails(IdentityKind.App, name, projectName, cancellationToken);
 
         return new()
         {
-            ApiToken = appDetails.Status.ApiToken,
+            ApiToken = details.ResolveApiToken(name, $"project '{projectName}'"),
         };
     }
 

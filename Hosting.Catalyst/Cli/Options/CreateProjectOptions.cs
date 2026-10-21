@@ -11,6 +11,7 @@ public record CreateProjectOptions
     public bool EnableManagedWorkflow { get; init; } = false;
 
     public bool Wait { get; init; } = true;
+    public bool IgnoreIfExists { get; init; } = true;
     public bool Use { get; init; }
     public bool DisableAppTunnels { get; init; }
 }

@@ -53,17 +53,19 @@ public interface CatalystProvisioner
     ///     Creates an app in Catalyst.
     /// </summary>
     /// <param name="name"></param>
+    /// <param name="projectName"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    Task CreateApp(string name, CancellationToken cancellationToken);
+    Task CreateApp(string name, string projectName, CancellationToken cancellationToken);
 
     /// <summary>
     ///     Gets details about an app in Catalyst.
     /// </summary>
     /// <param name="name"></param>
+    /// <param name="projectName"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    Task<AppDetails> GetAppDetails(string name, CancellationToken cancellationToken);
+    Task<AppDetails> GetAppDetails(string name, string projectName, CancellationToken cancellationToken);
 
     /// <summary>
     ///     Creates a component in Catalyst.
