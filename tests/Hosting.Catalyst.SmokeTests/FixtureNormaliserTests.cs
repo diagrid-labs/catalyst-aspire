@@ -57,4 +57,44 @@ public class FixtureNormaliserTests
     [Fact]
     public void Mock_values_pass_the_backstop()
         => Clean("""{"apiToken":"diagrid://mock-api-token","token":"mock-app-token","u":"https://http.r1.diagrid.io/v1/demo"}""");
+
+    // The shapes the real CLI emits come first: 1.109.0 writes metadata.createdAt as "2026-10-20 05:17:48" and
+    // status.updatedAt as "2026-10-21 09:07:01.000". An ISO-8601-only normaliser left those verbatim, so each
+    // nightly capture differed from the last on timestamps alone and the drift PR reported nothing real.
+    [Theory]
+    [InlineData("2026-10-20 05:17:48")]
+    [InlineData("2026-10-21 09:07:01.000")]
+    [InlineData("2026-10-21T09:00:00Z")]
+    [InlineData("2026-10-21T09:00:00.1234Z")]
+    [InlineData("2026-10-21T09:00:00+02:00")]
+    public void Every_timestamp_the_cli_emits_collapses_to_one_constant(string timestamp)
+    {
+        var node = FixtureCapture.Normalise(JsonNode.Parse($$"""{"createdAt":{{System.Text.Json.JsonSerializer.Serialize(timestamp)}}}"""), Names, null)!;
+
+        Assert.Equal(FixtureCapture.NormalisedTimestamp, (string?)node["createdAt"]);
+    }
+
+    // Two captures taken on different days must produce byte-identical documents, or the nightly opens a PR a
+    // reviewer cannot act on. This is the property the drift signal rests on, asserted end to end.
+    [Fact]
+    public void Two_captures_on_different_days_normalise_identically()
+    {
+        const string monday = """{"metadata":{"createdAt":"2026-10-20 05:17:48","updatedAt":"2026-10-20 05:21:47"},"status":{"updatedAt":"2026-10-20 06:00:00.714"}}""";
+        const string friday = """{"metadata":{"createdAt":"2026-10-24 22:03:11","updatedAt":"2026-10-24 22:59:02"},"status":{"updatedAt":"2026-10-24 23:14:05.002"}}""";
+
+        Assert.Equal(Clean(monday).ToJsonString(), Clean(friday).ToJsonString());
+    }
+
+    // Guards the widened pattern: it must still only match timestamps.
+    [Theory]
+    [InlineData("not a date")]
+    [InlineData("demo")]
+    [InlineData("2026-10-20")]
+    [InlineData("aws-eu-central-1")]
+    public void Non_timestamps_are_left_alone(string value)
+    {
+        var node = FixtureCapture.Normalise(JsonNode.Parse($$"""{"field":{{System.Text.Json.JsonSerializer.Serialize(value)}}}"""), Names, null)!;
+
+        Assert.Equal(value, (string?)node["field"]);
+    }
 }

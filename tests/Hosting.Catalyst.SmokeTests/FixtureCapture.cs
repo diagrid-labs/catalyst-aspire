@@ -20,6 +20,11 @@ public partial class FixtureCapture
     private const string Redacted = "redacted";
     private const string MockUuid = "00000000-0000-0000-0000-000000000001";
 
+    // Every timestamp collapses to this one value so a capture on another day does not read as drift. It is written
+    // in the shape the CLI actually emits -- space-separated, no zone -- verified against 1.109.0 on a live account:
+    // metadata.createdAt "2026-10-20 05:17:48", status.updatedAt "2026-10-21 09:07:01.000". NOT ISO 8601.
+    internal const string NormalisedTimestamp = "2026-01-01 00:00:00";
+
     [SkippableFact(Timeout = 25 * 60 * 1000)]
     public async Task Captures_fixtures_from_the_real_cli()
     {
@@ -115,7 +120,7 @@ public partial class FixtureCapture
         }
 
         if (s.Contains("diagrid://", StringComparison.Ordinal)) return MockApiToken; // a token anywhere in the string
-        if (Timestamp().IsMatch(s)) return "2026-01-01T00:00:00Z";
+        if (Timestamp().IsMatch(s)) return NormalisedTimestamp;
         if (Uuid().IsMatch(s)) return MockUuid;
         foreach (var name in names) s = s.Replace(name, "demo", StringComparison.Ordinal);
         s = Email().Replace(s, "user@example.com");
@@ -163,7 +168,10 @@ public partial class FixtureCapture
         }
     }
 
-    [GeneratedRegex(@"^\d{4}-\d\d-\d\dT[\d:.]+(Z|[+-]\d\d:\d\d)$")]
+    // Both separators on purpose. The CLI emits "2026-10-20 05:17:48" (and ".000" on status.updatedAt); an
+    // ISO-8601-only pattern leaves those untouched, so every nightly capture would differ from the last on
+    // timestamps alone and open a drift PR that reports nothing. The zone suffix is optional for the same reason.
+    [GeneratedRegex(@"^\d{4}-\d\d-\d\d[T ][\d:.]+(Z|[+-]\d\d:\d\d)?$")]
     private static partial Regex Timestamp();
 
     [GeneratedRegex(@"^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")]
