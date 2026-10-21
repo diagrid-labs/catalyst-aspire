@@ -24,9 +24,14 @@ public class CatalystProject : IResource
     internal TaskCompletionSource<string> HttpEndpoint { get; } = new();
     internal TaskCompletionSource<string> GrpcEndpoint { get; } = new();
     internal ProjectDescriptor ProjectDescriptor { get; init; } = new();
-    internal Dictionary<Resource, TaskCompletionSource<AppDetails>> AppDetails { get; init; } = new();
+    internal Dictionary<Resource, CatalystIdentity> Identities { get; init; } = new();
     internal Dictionary<string, PubSubDescriptor> PubSubs { get; init; } = new();
     internal Dictionary<string, KvStoreDescriptor> KvStores { get; init; } = new();
     internal Dictionary<string, ComponentDescriptor> Components { get; init; } = new();
     internal Dictionary<string, SubscriptionDescriptor> Subscriptions { get; init; } = new();
 }
+
+/// <summary>
+///     A Catalyst identity (app or agent) that an Aspire resource is backed by, and the details resolved once provisioned.
+/// </summary>
+internal record CatalystIdentity(IdentityKind Kind, TaskCompletionSource<AppDetails> Details);

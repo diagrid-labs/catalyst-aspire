@@ -144,14 +144,14 @@ internal class CatalystLifecycleHandler(
             State = new("Ensuring applications", KnownResourceStateStyles.Info),
         });
 
-        foreach (var pair in catalystProject.AppDetails)
+        foreach (var pair in catalystProject.Identities)
         {
             try
             {
                 await provisioner.CreateApp(pair.Key.Name, catalystProject.ProjectName, cancellationToken);
                 var app = await provisioner.GetAppDetails(pair.Key.Name, catalystProject.ProjectName, cancellationToken);
 
-                pair.Value.SetResult(app);
+                pair.Value.Details.SetResult(app);
             }
             catch (Exception ex)
             {

@@ -69,54 +69,55 @@ public static class ResourceBuilderExtensions
     }
 
     /// <summary>
-    ///     Configures a project to use Catalyst.
+    ///     Configures a resource to use Catalyst. Equivalent to <see cref="WithCatalystApp{ResourceType}"/>.
     /// </summary>
     /// <param name="resourceBuilder"></param>
     /// <param name="catalystProjectBuilder"></param>
-    /// <returns></returns>
-    /// <exception cref="Exception"></exception>
     public static IResourceBuilder<ResourceType> WithCatalyst<ResourceType>(this IResourceBuilder<ResourceType> resourceBuilder, IResourceBuilder<CatalystProject>? catalystProjectBuilder = null)
     where ResourceType : Resource, IResourceWithEnvironment, IResourceWithWaitSupport
+        => resourceBuilder.WithCatalystApp(catalystProjectBuilder);
+
+    /// <summary>
+    ///     Configures a resource to run as a Catalyst app. Resources without an HTTP endpoint,
+    ///     such as a workflow-only worker, are supported.
+    /// </summary>
+    /// <param name="resourceBuilder"></param>
+    /// <param name="catalystProjectBuilder"></param>
+    /// <exception cref="ArgumentException">The Aspire resource name is not a valid Catalyst name.</exception>
+    public static IResourceBuilder<ResourceType> WithCatalystApp<ResourceType>(this IResourceBuilder<ResourceType> resourceBuilder, IResourceBuilder<CatalystProject>? catalystProjectBuilder = null)
+    where ResourceType : Resource, IResourceWithEnvironment, IResourceWithWaitSupport
     {
+        CatalystNames.EnsureValidResourceName(resourceBuilder.Resource.Name);
+
         var applicationBuilder = resourceBuilder.ApplicationBuilder;
         var catalystProjects = applicationBuilder.EnsureCatalystResources();
 
         if (catalystProjects.Count > 1 && catalystProjectBuilder is null)
-            throw new($"Your Aspire orchestration has multiple Catalyst projects configured. Please specify which one to use when calling {nameof(WithCatalyst)}.");
-            
+            throw new($"Your Aspire orchestration has multiple Catalyst projects configured. Please specify which one to use when calling {nameof(WithCatalystApp)}.");
+
         catalystProjectBuilder ??= applicationBuilder.CreateResourceBuilder(catalystProjects.Single());
 
         resourceBuilder.WaitForCompletion(catalystProjectBuilder);
-        
-        if (
-            resourceBuilder.Resource is IResourceWithEndpoints resourceWithEndpoints
-            && resourceWithEndpoints.GetEndpoints().FirstOrDefault((endpoint) => endpoint.IsHttp) is {} httpEndpoint
-        )
-        {
-            var catalystProxy = applicationBuilder
-                .AddExecutable(
-                    $"{resourceBuilder.Resource.Name}-catalyst-proxy",
-                    "diagrid",
-                    // todo: I want a better, more explicit PWD than this.
-                    ".",
-                    [
-                        "dev", "run",
-                        "--approve",
-                        "--project", catalystProjectBuilder.Resource.ProjectName,
-                        "--app-id", resourceBuilder.Resource.Name,
-                        "--app-port", httpEndpoint.Property(EndpointProperty.Port),
-                        "--skip-managed-kv",
-                        "--skip-managed-pubsub",
-                    ]
-                )
-                .WaitForCompletion(catalystProjectBuilder);
 
-            resourceBuilder
-                .WaitFor(catalystProxy)
-                .WithChildRelationship(catalystProxy);
+        EndpointReference? httpEndpoint = resourceBuilder.Resource is IResourceWithEndpoints resourceWithEndpoints
+            ? resourceWithEndpoints.GetEndpoints().FirstOrDefault((endpoint) => endpoint.IsHttp)
+            : null;
 
-            catalystProjectBuilder.Resource.AppDetails[resourceBuilder.Resource] = new();
-        }
+        var catalystProxy = applicationBuilder
+            .AddExecutable(
+                $"{resourceBuilder.Resource.Name}-catalyst-proxy",
+                "diagrid",
+                // todo: I want a better, more explicit PWD than this.
+                ".",
+                BuildDevRunArgs(catalystProjectBuilder.Resource.ProjectName, resourceBuilder.Resource.Name, httpEndpoint)
+            )
+            .WaitForCompletion(catalystProjectBuilder);
+
+        resourceBuilder
+            .WaitFor(catalystProxy)
+            .WithChildRelationship(catalystProxy);
+
+        catalystProjectBuilder.Resource.Identities[resourceBuilder.Resource] = new(IdentityKind.App, new());
 
         resourceBuilder.WithEnvironment(async (context) =>
         {
@@ -126,7 +127,7 @@ public static class ResourceBuilderExtensions
             var catalystProject = applicationModel.Resources.FirstOrDefault((resource) => resource is CatalystProject) as CatalystProject
                 ?? throw new("This project is missing a Catalyst project resource.");
 
-            var appDetails = await catalystProject.AppDetails[resourceBuilder.Resource].Task;
+            var appDetails = await catalystProject.Identities[resourceBuilder.Resource].Details.Task;
 
             context.EnvironmentVariables["DAPR_GRPC_ENDPOINT"] = await catalystProject.GrpcEndpoint.Task;
             context.EnvironmentVariables["DAPR_HTTP_ENDPOINT"] = await catalystProject.HttpEndpoint.Task;
@@ -134,6 +135,32 @@ public static class ResourceBuilderExtensions
         });
 
         return resourceBuilder;
+    }
+
+    /// <summary>
+    ///     Builds the <c>diagrid dev run</c> arguments. <c>--app-port</c> is omitted when the resource has no
+    ///     HTTP endpoint, as for a workflow-only worker.
+    /// </summary>
+    internal static object[] BuildDevRunArgs(string projectName, string id, EndpointReference? httpEndpoint)
+    {
+        var args = new List<object>
+        {
+            "dev", "run",
+            "--approve",
+            "--project", projectName,
+            "--id", id,
+        };
+
+        if (httpEndpoint is not null)
+        {
+            args.Add("--app-port");
+            args.Add(httpEndpoint.Property(EndpointProperty.Port));
+        }
+
+        args.Add("--skip-managed-kv");
+        args.Add("--skip-managed-pubsub");
+
+        return args.ToArray();
     }
 
     public static IResourceBuilder<ResourceType> WithSubscription<ResourceType>(
@@ -147,7 +174,7 @@ public static class ResourceBuilderExtensions
         var applicationBuilder = resourceBuilder.ApplicationBuilder;
         var catalystProject = applicationBuilder
             .EnsureCatalystResources()
-            .FirstOrDefault((catalystProject) => catalystProject.AppDetails.Any((app) => app.Key == resourceBuilder.Resource));
+            .FirstOrDefault((catalystProject) => catalystProject.Identities.Any((app) => app.Key == resourceBuilder.Resource));
 
         if (catalystProject is null)
             throw new("This resource is not associated with a Catalyst project.");
