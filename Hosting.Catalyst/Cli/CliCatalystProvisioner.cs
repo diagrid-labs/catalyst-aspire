@@ -34,20 +34,12 @@ public class CliCatalystProvisioner : CatalystProvisioner
 
     public async Task CreateProject(string projectName, ProjectDescriptor descriptor, CancellationToken cancellationToken)
     {
-        try
+        await Commands.CreateProject(projectName, new()
         {
-            await Commands.CreateProject(projectName, new()
-            {
-                EnableManagedWorkflow = descriptor.EnableManagedWorkflow,
-                DeployManagedKv = false,
-                DeployManagedPubsub = false,
-            }, cancellationToken);
-        }
-        catch (InvalidOperationException invalid)
-        {
-            if (invalid.Message.Contains("configured maximum number of projects"))
-                throw;
-        }
+            EnableManagedWorkflow = descriptor.EnableManagedWorkflow,
+            DeployManagedKv = false,
+            DeployManagedPubsub = false,
+        }, cancellationToken);
     }
 
     public async Task UseProject(string projectName, CancellationToken cancellationToken)

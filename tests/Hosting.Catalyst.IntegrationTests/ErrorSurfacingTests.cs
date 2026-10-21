@@ -38,6 +38,21 @@ public class ErrorSurfacingTests
     }
 
     [Fact(Timeout = 30_000)]
+    public async Task Provisioner_CreateProject_propagates_a_cli_failure_instead_of_swallowing_it()
+    {
+        using var fake = new FakeDiagridFixture();
+        fake.SetScenario(new Scenario
+        {
+            Responses = [new() { ExitCode = 1, StdErr = "Error: configured maximum number of projects reached\n" }],
+        });
+
+        var ex = await Assert.ThrowsAsync<CatalystCliException>(
+            () => new CliCatalystProvisioner().CreateProject("demo", new(), default));
+
+        Assert.Contains("maximum number of projects", ex.Message);
+    }
+
+    [Fact(Timeout = 30_000)]
     public async Task Already_exists_failure_is_no_longer_tolerated()
     {
         using var fake = new FakeDiagridFixture();

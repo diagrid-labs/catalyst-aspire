@@ -22,8 +22,15 @@ public sealed class CatalystCliException : Exception
 
     public IReadOnlyList<string> Arguments { get; }
 
+    /// <summary>
+    /// The CLI's exit code. Can be 0 when the CLI succeeded but its output was cut off and could not be read;
+    /// <see cref="Exception.Message"/> says so in that case.
+    /// </summary>
     public int ExitCode { get; }
 
+    /// <summary>
+    /// The CLI's stderr after cleaning (escape sequences and the update notice removed), NOT verbatim output.
+    /// </summary>
     public string StdErr { get; }
 
     internal static string BuildMessage(
