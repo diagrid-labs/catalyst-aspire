@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Diagrid.Aspire.Hosting.Catalyst.Model;
@@ -42,12 +43,22 @@ public interface CatalystProvisioner
     Task UseProject(string projectName, CancellationToken cancellationToken);
 
     /// <summary>
-    ///     Gets details about a Catalyst project.
+    ///     Gets details about a Catalyst project, or null while it is still coming up (no endpoints yet).
     /// </summary>
     /// <param name="projectName"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    Task<ProjectDetails> GetProjectDetails(string projectName, CancellationToken cancellationToken);
+    Task<ProjectDetails?> TryGetProjectDetails(string projectName, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Polls until the project reports its endpoints. Throws <see cref="System.TimeoutException"/> naming the
+    ///     project and the time waited if it does not become ready within <paramref name="timeout"/>.
+    /// </summary>
+    /// <param name="projectName"></param>
+    /// <param name="timeout"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    Task<ProjectDetails> WaitForProjectReady(string projectName, TimeSpan timeout, CancellationToken cancellationToken);
 
     /// <summary>
     ///     Creates an app in Catalyst.

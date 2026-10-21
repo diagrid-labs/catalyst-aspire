@@ -122,9 +122,7 @@ internal static class Commands
 
         result.EnsureSuccess(arguments);
 
-        var projectDetails = ParseJson(result, arguments, json => JsonSerializer.Deserialize<CliProjectDetails>(json));
-
-        return projectDetails ?? throw new InvalidOperationException("Failed to deserialize project details");
+        return ParseJson(result, arguments, CliProjectDetails.Parse);
     }
 
     private static string Noun(IdentityKind kind) => kind switch

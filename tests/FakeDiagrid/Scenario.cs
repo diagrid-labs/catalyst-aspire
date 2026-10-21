@@ -16,6 +16,12 @@ public record ScenarioResponse
     public int ExitCode { get; init; }
     public string? StdOut { get; init; }
     public string? StdErr { get; init; }
+    /// <summary>
+    /// When above zero, this response applies only to the first N invocations whose argv contains
+    /// <see cref="ArgsMatch"/> (counted from the invocation record, this call included); later ones fall through
+    /// to the next response. Lets a scenario say "pending once, then ready". Needs FAKE_DIAGRID_RECORD.
+    /// </summary>
+    public int Times { get; init; }
     public int StdOutRepeat { get; init; } = 1;
     public int StdErrRepeat { get; init; } = 1;
     /// <summary>Writes stderr before stdout (default is stdout first).</summary>

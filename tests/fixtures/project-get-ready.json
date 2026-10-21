@@ -1,0 +1,33 @@
+{
+  "_capturedFrom": "diagrid CLI 1.85.0, 2026-10-21 (hand-built from the CLI golden structure, not captured from a live run; Task 16 re-captures from a real CLI)",
+  "apiVersion": "cra.diagrid.io/v1beta1",
+  "kind": "Project",
+  "metadata": {
+    "createdAt": "2026-10-21T09:00:00Z",
+    "name": "demo",
+    "resourceVersion": 3,
+    "uid": "00000000-0000-0000-0000-000000000001",
+    "updatedAt": "2026-10-21T09:02:00Z"
+  },
+  "spec": {
+    "defaultWorkflowStoreEnabled": true,
+    "disableAppTunnels": false,
+    "displayName": "demo",
+    "privateRegion": false,
+    "region": "aws-eu-central-1"
+  },
+  "status": {
+    "endpoints": {
+      "grpc": {
+        "port": 7443,
+        "url": "https://grpc.r1.diagrid.io:7443/demo"
+      },
+      "http": {
+        "port": 8443,
+        "url": "https://http.r1.diagrid.io/v1/demo"
+      }
+    },
+    "status": "ready",
+    "updatedAt": "2026-10-21T09:02:00Z"
+  }
+}

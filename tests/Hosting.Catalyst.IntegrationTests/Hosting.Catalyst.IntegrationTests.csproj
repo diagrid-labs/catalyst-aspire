@@ -26,6 +26,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\fixtures\*.json" Link="fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Share the scenario types by source, since the fake's assembly is not referenced. -->
     <Compile Include="..\FakeDiagrid\Scenario.cs" Link="Scenario.cs" />
   </ItemGroup>

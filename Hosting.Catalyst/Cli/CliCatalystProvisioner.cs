@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Diagrid.Aspire.Hosting.Catalyst.Cli.Options;
@@ -49,15 +50,50 @@ public class CliCatalystProvisioner : CatalystProvisioner
         await Commands.UseProject(projectName, cancellationToken);
     }
 
-    public async Task<ProjectDetails> GetProjectDetails(string projectName, CancellationToken cancellationToken)
+    public async Task<ProjectDetails?> TryGetProjectDetails(string projectName, CancellationToken cancellationToken)
     {
         var cliDetails = await Commands.GetProjectDetails(projectName, cancellationToken);
 
-        return new()
+        return cliDetails.ToProjectDetails();
+    }
+
+    private static readonly TimeSpan InitialPollDelay = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan MaxPollDelay = TimeSpan.FromSeconds(5);
+
+    public async Task<ProjectDetails> WaitForProjectReady(
+        string projectName,
+        TimeSpan timeout,
+        CancellationToken cancellationToken
+    )
+    {
+        // --ignore-if-exists returns before --wait for an existing project, so a project still starting up on a
+        // re-run reaches here without ever having been waited on.
+        var stopwatch = Stopwatch.StartNew();
+        var delay = InitialPollDelay;
+
+        while (true)
         {
-            HttpEndpoint = cliDetails.Status.Endpoints.Http.Uri,
-            GrpcEndpoint = cliDetails.Status.Endpoints.Grpc.Uri,
-        };
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var details = await TryGetProjectDetails(projectName, cancellationToken);
+
+            if (details is not null)
+            {
+                return details;
+            }
+
+            var remaining = timeout - stopwatch.Elapsed;
+
+            if (remaining <= TimeSpan.Zero)
+            {
+                throw new TimeoutException(
+                    $"Catalyst project '{projectName}' did not report endpoints after {stopwatch.Elapsed.TotalSeconds:F0}s "
+                    + "(it may still be starting; re-run once it is ready).");
+            }
+
+            await Task.Delay(delay < remaining ? delay : remaining, cancellationToken);
+            delay = TimeSpan.FromTicks(Math.Min(MaxPollDelay.Ticks, delay.Ticks * 2));
+        }
     }
 
     public async Task CreateApp(string name, string projectName, CancellationToken cancellationToken)

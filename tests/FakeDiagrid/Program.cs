@@ -40,7 +40,17 @@ var scenario = !string.IsNullOrEmpty(scenarioPath) && File.Exists(scenarioPath)
     : new Scenario();
 
 var joined = string.Join(' ', args);
-var response = scenario.Responses.FirstOrDefault(r => r.ArgsMatch is null || joined.Contains(r.ArgsMatch, StringComparison.Ordinal));
+
+// Invocation log lines (this call is already appended), for ScenarioResponse.Times.
+var recorded = !string.IsNullOrEmpty(recordPath) && File.Exists(recordPath)
+    ? File.ReadAllLines(recordPath).Where(l => l.Length > 0).Select(l => string.Join(' ', JsonSerializer.Deserialize<string[]>(l)!)).ToList()
+    : [joined];
+
+bool Applies(ScenarioResponse r) =>
+    (r.ArgsMatch is null || joined.Contains(r.ArgsMatch, StringComparison.Ordinal))
+    && (r.Times <= 0 || recorded.Count(l => r.ArgsMatch is null || l.Contains(r.ArgsMatch, StringComparison.Ordinal)) <= r.Times);
+
+var response = scenario.Responses.FirstOrDefault(Applies);
 
 if (response is null)
 {

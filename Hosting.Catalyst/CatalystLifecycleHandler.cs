@@ -14,6 +14,9 @@ internal class CatalystLifecycleHandler(
     CatalystProvisioner provisioner
 )
 {
+    internal const string WaitingForProjectState = "Waiting for project";
+    internal static readonly TimeSpan ProjectReadyTimeout = TimeSpan.FromMinutes(5);
+
     private readonly ILogger logger = resourceLogger.GetLogger(catalystProject);
     
     public async Task ProvisionCatalyst(CancellationToken cancellationToken)
@@ -119,7 +122,14 @@ internal class CatalystLifecycleHandler(
 
         try
         {
-            var projectDetails = await provisioner.GetProjectDetails(catalystProject.ProjectName, cancellationToken);
+            // A project that already existed may still be starting (project create returns early for it).
+            await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
+            {
+                State = new(WaitingForProjectState, KnownResourceStateStyles.Info),
+            });
+
+            var projectDetails = await provisioner.WaitForProjectReady(
+                catalystProject.ProjectName, ProjectReadyTimeout, cancellationToken);
 
             catalystProject.HttpEndpoint.SetResult(projectDetails.HttpEndpoint.ToString());
             catalystProject.GrpcEndpoint.SetResult(projectDetails.GrpcEndpoint.ToString());

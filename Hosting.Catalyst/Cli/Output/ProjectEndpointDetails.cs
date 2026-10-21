@@ -6,8 +6,8 @@ namespace Diagrid.Aspire.Hosting.Catalyst.Cli.Output;
 public record ProjectEndpointDetails
 {
     [JsonPropertyName("port")]
-    public required int Port { get; init; }
+    public int? Port { get; init; }
 
     [JsonPropertyName("url")]
-    public required Uri Uri { get; init; }
+    public Uri? Uri { get; init; }
 }

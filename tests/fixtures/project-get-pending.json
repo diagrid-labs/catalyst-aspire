@@ -1,0 +1,20 @@
+{
+  "_capturedFrom": "diagrid CLI 1.85.0, 2026-10-21 (hand-built from the CLI golden structure, not captured from a live run; Task 16 re-captures from a real CLI). status.endpoints is deliberately absent: the CLI omits it until the project is serving.",
+  "apiVersion": "cra.diagrid.io/v1beta1",
+  "kind": "Project",
+  "metadata": {
+    "createdAt": "2026-10-21T09:00:00Z",
+    "name": "demo",
+    "resourceVersion": 1,
+    "uid": "00000000-0000-0000-0000-000000000001",
+    "updatedAt": "2026-10-21T09:00:00Z"
+  },
+  "spec": {
+    "defaultWorkflowStoreEnabled": true,
+    "disableAppTunnels": false,
+    "displayName": "demo",
+    "privateRegion": false,
+    "region": "aws-eu-central-1"
+  },
+  "status": {}
+}
