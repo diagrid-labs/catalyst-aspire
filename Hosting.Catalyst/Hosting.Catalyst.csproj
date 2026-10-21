@@ -20,6 +20,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="Hosting.Catalyst.IntegrationTests" />
+    </ItemGroup>
+
+    <ItemGroup>
       <EmbeddedResource Include="Logo\*.txt" />
     </ItemGroup>
     

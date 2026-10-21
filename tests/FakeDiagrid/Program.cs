@@ -63,4 +63,6 @@ if (response.ReadStdInForever)
     while (stdin.Read(buffer, 0, buffer.Length) > 0) { }
 }
 
+if (response.SleepMilliseconds > 0) Thread.Sleep(response.SleepMilliseconds);
+
 return response.ExitCode;

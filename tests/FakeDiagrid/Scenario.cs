@@ -19,4 +19,6 @@ public record ScenarioResponse
     public int StdOutRepeat { get; init; } = 1;
     public int StdErrRepeat { get; init; } = 1;
     public bool ReadStdInForever { get; init; }
+    /// <summary>Sleeps this long before exiting, to simulate a CLI that hangs.</summary>
+    public int SleepMilliseconds { get; init; }
 }

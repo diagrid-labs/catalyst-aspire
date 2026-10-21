@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -13,6 +12,8 @@ namespace Diagrid.Aspire.Hosting.Catalyst.Cli;
 
 internal static class Commands
 {
+    private static readonly TimeSpan CommandTimeout = TimeSpan.FromMinutes(5);
+
     public static async Task CreateSubscription(
         string name,
         CreateSubscriptionOptions options,
@@ -33,9 +34,7 @@ internal static class Commands
         AddOptionalArgument(arguments, "--project", options.Project);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
-        var processStartInfo = CreateProcessStartInfo(arguments);
-
-        var (output, _, exitCode) = await ExecuteProcessAsync(processStartInfo, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
     }
@@ -49,9 +48,7 @@ internal static class Commands
             "catalyst",
         };
 
-        var processStartInfo = CreateProcessStartInfo(arguments);
-
-        await ExecuteProcessAsync(processStartInfo, cancellationToken);
+        await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
     }
 
     public static async Task CreateProject(
@@ -82,9 +79,7 @@ internal static class Commands
         AddFlagArgument(arguments, "--use", options.Use);
         AddFlagArgument(arguments, "--disable-app-tunnels", options.DisableAppTunnels);
 
-        var processStartInfo = CreateProcessStartInfo(arguments);
-
-        var (output, _, exitCode) = await ExecuteProcessAsync(processStartInfo, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
     }
@@ -98,9 +93,7 @@ internal static class Commands
             projectName,
         };
 
-        var processStartInfo = CreateProcessStartInfo(arguments);
-
-        await ExecuteProcessAsync(processStartInfo, cancellationToken);
+        await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
     }
 
     public static async Task<CliProjectDetails> GetProjectDetails(string projectName,
@@ -115,8 +108,7 @@ internal static class Commands
             "json",
         };
 
-        var processStartInfo = CreateProcessStartInfo(arguments);
-        var (output, _, exitCode) = await ExecuteProcessAsync(processStartInfo, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
 
@@ -136,8 +128,7 @@ internal static class Commands
             "json",
         };
 
-        var processStartInfo = CreateProcessStartInfo(arguments);
-        var (output, error, exitCode) = await ExecuteProcessAsync(processStartInfo, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
 
@@ -174,9 +165,7 @@ internal static class Commands
         AddOptionalIntArgument(arguments, "--app-channel-timeout-seconds", options.AppChannelTimeoutSeconds);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
-        var processStartInfo = CreateProcessStartInfo(arguments);
-
-        var (output, _, exitCode) = await ExecuteProcessAsync(processStartInfo, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
     }
@@ -227,9 +216,7 @@ internal static class Commands
         AddOptionalArgument(arguments, "--project", options.Project);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
-        var processStartInfo = CreateProcessStartInfo(arguments);
-
-        var (output, _, exitCode) = await ExecuteProcessAsync(processStartInfo, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
     }
@@ -256,9 +243,7 @@ internal static class Commands
         AddScopesArgument(arguments, options.Scopes);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
-        var processStartInfo = CreateProcessStartInfo(arguments);
-
-        var (output, _, exitCode) = await ExecuteProcessAsync(processStartInfo, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
     }
@@ -285,9 +270,7 @@ internal static class Commands
         AddScopesArgument(arguments, options.Scopes);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
-        var processStartInfo = CreateProcessStartInfo(arguments);
-
-        var (output, _, exitCode) = await ExecuteProcessAsync(processStartInfo, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
     }
@@ -314,8 +297,7 @@ internal static class Commands
         arguments.Add("--project");
         arguments.Add(projectName);
 
-        var processStartInfo = CreateProcessStartInfo(arguments);
-        var (output, _, exitCode) = await ExecuteProcessAsync(processStartInfo, cancellationToken);
+        var (output, _, exitCode) = await ProcessRunner.RunAsync(arguments, CommandTimeout, cancellationToken);
 
         CheckExitCode(exitCode, output);
 
@@ -325,39 +307,6 @@ internal static class Commands
         return root.GetProperty("items")
             .EnumerateArray()
             .Any((kv) => kv.GetProperty("metadata").GetProperty("name").GetString() == kvStoreName);
-    }
-
-    private static ProcessStartInfo CreateProcessStartInfo(IList<string> arguments)
-    {
-        return new()
-        {
-            FileName = "diagrid",
-            Arguments = string.Join(" ", arguments),
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-    }
-
-    private static async Task<(string output, string error, int exitCode)> ExecuteProcessAsync(
-        ProcessStartInfo processStartInfo,
-        CancellationToken cancellationToken
-    )
-    {
-        using var process = Process.Start(processStartInfo);
-
-        if (process is null)
-        {
-            throw new InvalidOperationException("Failed to start diagrid process");
-        }
-
-        await process.WaitForExitAsync(cancellationToken);
-
-        var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var error = await process.StandardError.ReadToEndAsync(cancellationToken);
-
-        return (output, error, process.ExitCode);
     }
 
     private static void CheckExitCode(int exitCode, string output)
