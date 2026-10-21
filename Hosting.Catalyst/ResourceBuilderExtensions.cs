@@ -81,6 +81,11 @@ public static class ResourceBuilderExtensions
     ///     Configures a resource to run as a Catalyst app. Resources without an HTTP endpoint,
     ///     such as a workflow-only worker, are supported.
     /// </summary>
+    /// <remarks>
+    ///     Call this after the resource's HTTP endpoint is declared (for example <c>WithHttpEndpoint</c>). The endpoint is
+    ///     read when this method runs, so an endpoint added afterwards is not seen and the proxy is started without
+    ///     <c>--app-port</c>.
+    /// </remarks>
     /// <param name="resourceBuilder"></param>
     /// <param name="catalystProjectBuilder"></param>
     /// <exception cref="ArgumentException">The Aspire resource name is not a valid Catalyst name.</exception>
@@ -103,15 +108,31 @@ public static class ResourceBuilderExtensions
             ? resourceWithEndpoints.GetEndpoints().FirstOrDefault((endpoint) => endpoint.IsHttp)
             : null;
 
-        var catalystProxy = applicationBuilder
-            .AddExecutable(
-                $"{resourceBuilder.Resource.Name}-catalyst-proxy",
+        var proxyName = $"{resourceBuilder.Resource.Name}-catalyst-proxy";
+        IResourceBuilder<ExecutableResource> catalystProxy;
+
+        try
+        {
+            catalystProxy = applicationBuilder.AddExecutable(
+                proxyName,
                 "diagrid",
                 // todo: I want a better, more explicit PWD than this.
                 ".",
                 BuildDevRunArgs(catalystProjectBuilder.Resource.ProjectName, resourceBuilder.Resource.Name, httpEndpoint)
-            )
-            .WaitForCompletion(catalystProjectBuilder);
+            );
+        }
+        catch (ArgumentException ex)
+        {
+            // Aspire limits resource names to 64 characters, and the proxy name adds a suffix to the resource's own.
+            // Name the resource the developer typed rather than the proxy they never see.
+            throw new ArgumentException(
+                $"The Aspire resource '{resourceBuilder.Resource.Name}' is too long to use with Catalyst: Catalyst runs it behind a proxy "
+                + $"resource named '{proxyName}', which Aspire rejects ({ex.Message}). Shorten the resource name.",
+                nameof(resourceBuilder),
+                ex);
+        }
+
+        catalystProxy.WaitForCompletion(catalystProjectBuilder);
 
         resourceBuilder
             .WaitFor(catalystProxy)

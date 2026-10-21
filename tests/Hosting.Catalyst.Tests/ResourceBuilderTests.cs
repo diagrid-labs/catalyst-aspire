@@ -2,6 +2,7 @@ using Aspire.Hosting;
 using Aspire.Hosting.ApplicationModel;
 using Diagrid.Aspire.Hosting.Catalyst;
 using Diagrid.Aspire.Hosting.Catalyst.Model;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Hosting.Catalyst.Tests;
 
@@ -51,7 +52,7 @@ public class ResourceBuilderTests
 
         var index = args.IndexOf("--app-port");
         Assert.True(index >= 0, "--app-port should be present when the resource has an HTTP endpoint");
-        Assert.Contains("api", args[index + 1], StringComparison.Ordinal);
+        Assert.Equal("{api.bindings.http.port}", args[index + 1]);
         Assert.Equal("api", args[args.IndexOf("--id") + 1]);
     }
 
@@ -64,6 +65,63 @@ public class ResourceBuilderTests
 
         var ex = Assert.Throws<ArgumentException>(() => bad.WithCatalystApp());
         Assert.Contains("TestApi", ex.Message, StringComparison.Ordinal);
+    }
+
+    // Aspire accepts resource names up to 64 characters (measured: 64 ok, 65 rejected with ASPIRE006).
+    // The proxy is named "{name}-catalyst-proxy", 15 characters longer, so the longest usable name is 49.
+    [Fact]
+    public void Accepts_a_resource_name_whose_proxy_name_is_exactly_at_the_aspire_limit()
+    {
+        var builder = DistributedApplication.CreateBuilder();
+        var catalyst = builder.AddCatalystProject("demo");
+        var name = new string('a', 49);
+
+        builder.AddExecutable(name, "dotnet", ".").WithCatalystApp();
+
+        Assert.Single(catalyst.Resource.Identities);
+        Assert.Equal(64, $"{name}-catalyst-proxy".Length);
+    }
+
+    [Fact]
+    public void Rejects_a_resource_name_whose_proxy_name_exceeds_the_aspire_limit_naming_the_resource()
+    {
+        var builder = DistributedApplication.CreateBuilder();
+        builder.AddCatalystProject("demo");
+        var name = new string('a', 50);
+        var resource = builder.AddExecutable(name, "dotnet", ".");
+
+        var ex = Assert.Throws<ArgumentException>(() => resource.WithCatalystApp());
+
+        Assert.Contains($"'{name}'", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("too long", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Environment_callback_resolves_for_a_resource_with_no_http_endpoint()
+    {
+        var builder = DistributedApplication.CreateBuilder();
+        var catalyst = builder.AddCatalystProject("demo");
+        var worker = builder.AddExecutable("worker", "dotnet", ".").WithCatalystApp();
+
+        var project = catalyst.Resource;
+        project.GrpcEndpoint.SetResult("https://grpc.example");
+        project.HttpEndpoint.SetResult("https://http.example");
+        project.Identities[worker.Resource].Details.SetResult(new AppDetails { ApiToken = "tok" });
+
+        var services = new ServiceCollection()
+            .AddSingleton(new DistributedApplicationModel(builder.Resources))
+            .BuildServiceProvider();
+        var executionContext = new DistributedApplicationExecutionContext(
+            new DistributedApplicationExecutionContextOptions(DistributedApplicationOperation.Run) { ServiceProvider = services });
+        var env = new Dictionary<string, object>();
+        var context = new EnvironmentCallbackContext(executionContext, env);
+
+        foreach (var annotation in worker.Resource.Annotations.OfType<EnvironmentCallbackAnnotation>())
+            await annotation.Callback(context);
+
+        Assert.Equal("https://grpc.example", env["DAPR_GRPC_ENDPOINT"]);
+        Assert.Equal("https://http.example", env["DAPR_HTTP_ENDPOINT"]);
+        Assert.Equal("tok", env["DAPR_API_TOKEN"]);
     }
 
     private static (CatalystProject Project, IResourceBuilder<ExecutableResource> Worker) BuildWorkerWithNoEndpoint()
