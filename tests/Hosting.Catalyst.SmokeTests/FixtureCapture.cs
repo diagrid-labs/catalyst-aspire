@@ -17,6 +17,8 @@ public partial class FixtureCapture
 {
     private const string MockApiToken = "diagrid://mock-api-token";
     private const string MockAppToken = "mock-app-token";
+    private const string Redacted = "redacted";
+    private const string MockUuid = "00000000-0000-0000-0000-000000000001";
 
     [SkippableFact(Timeout = 25 * 60 * 1000)]
     public async Task Captures_fixtures_from_the_real_cli()
@@ -61,6 +63,7 @@ public partial class FixtureCapture
     {
         var root = (JsonObject)(Normalise(JsonNode.Parse(rawJson), names, null)
             ?? throw new InvalidOperationException($"{file}: CLI printed no JSON"));
+        AssertNoSecrets(root, names);
         var ordered = new JsonObject { ["_capturedFrom"] = origin };
         foreach (var (key, value) in root.ToList())
         {
@@ -71,7 +74,7 @@ public partial class FixtureCapture
         File.WriteAllText(Path.Combine(dir, file), ordered.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
     }
 
-    private static JsonNode? Normalise(JsonNode? node, string[] names, string? parentKey)
+    internal static JsonNode? Normalise(JsonNode? node, string[] names, string? parentKey)
     {
         switch (node)
         {
@@ -98,12 +101,58 @@ public partial class FixtureCapture
 
     private static string NormaliseString(string s, string[] names, string? key)
     {
-        if (s.StartsWith("diagrid://", StringComparison.Ordinal) || key == "apiToken") return MockApiToken;
-        if (key is "token" or "appToken") return MockAppToken;
+        if (key is not null && SecretKey().IsMatch(key))
+        {
+            // Case-insensitive on purpose: ApiToken, accessToken, api_key, clientSecret, Password...
+            return key.Contains("api", StringComparison.OrdinalIgnoreCase) && key.Contains("token", StringComparison.OrdinalIgnoreCase)
+                ? MockApiToken
+                : key.Equals("token", StringComparison.OrdinalIgnoreCase) || key.Equals("appToken", StringComparison.OrdinalIgnoreCase)
+                    ? MockAppToken
+                    : Redacted;
+        }
+
+        if (s.Contains("diagrid://", StringComparison.Ordinal)) return MockApiToken; // a token anywhere in the string
         if (Timestamp().IsMatch(s)) return "2026-01-01T00:00:00Z";
-        if (Uuid().IsMatch(s)) return "00000000-0000-0000-0000-000000000001";
+        if (Uuid().IsMatch(s)) return MockUuid;
         foreach (var name in names) s = s.Replace(name, "demo", StringComparison.Ordinal);
-        return s;
+        s = Email().Replace(s, "user@example.com");
+        return OpaqueId().Replace(s, Redacted);
+    }
+
+    /// <summary>
+    /// Fail-closed backstop run on the NORMALISED document, before it is written. The nightly pushes to a public
+    /// repo, so anything credential-shaped that survived normalisation must stop the job, not be reviewed later.
+    /// Throws naming the path only, never the value.
+    /// </summary>
+    internal static void AssertNoSecrets(JsonNode node, string[] names, string path = "$")
+    {
+        switch (node)
+        {
+            case JsonObject obj:
+                foreach (var (key, value) in obj)
+                {
+                    if (value is JsonValue v && v.TryGetValue<string>(out var str) && SecretKey().IsMatch(key)
+                        && str is not (MockApiToken or MockAppToken or Redacted))
+                    {
+                        throw new InvalidOperationException($"{path}.{key}: secret-looking key holds a non-mock value");
+                    }
+
+                    if (value is not null) AssertNoSecrets(value, names, $"{path}.{key}");
+                }
+                break;
+            case JsonArray array:
+                for (var i = 0; i < array.Count; i++)
+                {
+                    if (array[i] is { } item) AssertNoSecrets(item, names, $"{path}[{i}]");
+                }
+                break;
+            case JsonValue value when value.TryGetValue<string>(out var s):
+                if (s.Contains("diagrid://", StringComparison.Ordinal) && s != MockApiToken) throw new InvalidOperationException($"{path}: diagrid:// value other than the mock");
+                if (Email().IsMatch(s) && !s.EndsWith("@example.com", StringComparison.Ordinal)) throw new InvalidOperationException($"{path}: e-mail address");
+                if (s != MockUuid && OpaqueId().IsMatch(s)) throw new InvalidOperationException($"{path}: long opaque string");
+                if (names.Any(n => s.Contains(n, StringComparison.Ordinal))) throw new InvalidOperationException($"{path}: throwaway name not normalised");
+                break;
+        }
     }
 
     [GeneratedRegex(@"^\d{4}-\d\d-\d\dT[\d:.]+(Z|[+-]\d\d:\d\d)$")]
@@ -111,4 +160,14 @@ public partial class FixtureCapture
 
     [GeneratedRegex(@"^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")]
     private static partial Regex Uuid();
+
+    [GeneratedRegex("token|key|secret|password|credential|bearer", RegexOptions.IgnoreCase)]
+    private static partial Regex SecretKey();
+
+    [GeneratedRegex(@"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")]
+    private static partial Regex Email();
+
+    // 32+ chars of base64url/hex: a token, hash or opaque id. Spans a whole word so URLs are untouched.
+    [GeneratedRegex(@"(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{32,}(?![A-Za-z0-9_-])")]
+    private static partial Regex OpaqueId();
 }

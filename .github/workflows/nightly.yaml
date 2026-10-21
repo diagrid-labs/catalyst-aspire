@@ -3,6 +3,12 @@ name: "Nightly (real Catalyst)"
 # Runs the opt-in smoke suite and re-captures the CLI fixtures against a real Catalyst account.
 # It is NOT a required check and never gates a merge: a failure opens an issue, fixture drift opens a PR.
 # Skipped entirely when the CATALYST_API_KEY secret is absent (forks, or a repo without the account).
+#
+# This repo is public and the secret is live, so:
+#  - the API key is exposed to the login step only, never to the job as a whole or to third-party actions;
+#  - third-party actions are pinned to commit SHAs;
+#  - captured fixtures are scanned fail-closed BEFORE anything is committed or pushed;
+#  - nothing prints account identity (no `diagrid whoami`).
 on:
   schedule:
     - cron: "17 3 * * *"
@@ -18,19 +24,24 @@ concurrency:
   group: nightly-catalyst
   cancel-in-progress: false
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   nightly:
     name: "Smoke tests and fixture capture"
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      CATALYST_API_KEY: ${{ secrets.CATALYST_API_KEY }}
+      # A boolean only: the secret itself is not in the job environment.
+      HAS_CATALYST_KEY: ${{ secrets.CATALYST_API_KEY != '' }}
 
     steps:
       - name: "Gate on the API key"
         id: gate
         run: |
-          if [ -z "$CATALYST_API_KEY" ]; then
+          if [ "$HAS_CATALYST_KEY" != "true" ]; then
             echo "CATALYST_API_KEY is not set; skipping the nightly run."
             echo "enabled=false" >> "$GITHUB_OUTPUT"
           else
@@ -39,11 +50,11 @@ jobs:
 
       - name: "Checkout"
         if: steps.gate.outputs.enabled == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: "Setup dotnet"
         if: steps.gate.outputs.enabled == 'true'
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           dotnet-version: 10.*.*
 
@@ -53,23 +64,29 @@ jobs:
           brew install diagridio/tap/diagrid
           diagrid version
 
+      # The only step that sees the key. The login persists in the CLI's config for the later steps; if a CLI
+      # release stops persisting it, move the env block to the steps that need it rather than to the job.
       - name: "Log in"
         if: steps.gate.outputs.enabled == 'true'
-        run: |
-          diagrid login --api-key "$CATALYST_API_KEY" --no-browser
-          diagrid whoami
+        env:
+          CATALYST_API_KEY: ${{ secrets.CATALYST_API_KEY }}
+        run: diagrid login --api-key "$CATALYST_API_KEY" --no-browser > /dev/null
 
       - name: "Build"
         if: steps.gate.outputs.enabled == 'true'
         run: dotnet build tests/Hosting.Catalyst.SmokeTests
 
+      # dotnet test reports a skip as success, so assert from the TRX that tests actually passed and none skipped.
       - name: "Smoke tests"
         id: smoke
         if: steps.gate.outputs.enabled == 'true'
         continue-on-error: true
         env:
           CATALYST_SMOKE_ENABLED: "true"
-        run: dotnet test tests/Hosting.Catalyst.SmokeTests --no-build --filter "FullyQualifiedName~SmokeTests.SmokeTests"
+        run: |
+          dotnet test tests/Hosting.Catalyst.SmokeTests --no-build --filter "FullyQualifiedName~SmokeTests.SmokeTests" \
+            --logger "trx;LogFileName=smoke.trx" --results-directory "$RUNNER_TEMP/smoke-results"
+          bash .github/scripts/assert-tests-ran.sh "$RUNNER_TEMP/smoke-results"
 
       - name: "Capture fixtures"
         id: capture
@@ -77,7 +94,10 @@ jobs:
         continue-on-error: true
         env:
           CATALYST_CAPTURE_FIXTURES_DIR: ${{ github.workspace }}/tests/fixtures
-        run: dotnet test tests/Hosting.Catalyst.SmokeTests --no-build --filter "FullyQualifiedName~FixtureCapture"
+        run: |
+          dotnet test tests/Hosting.Catalyst.SmokeTests --no-build --filter "FullyQualifiedName~FixtureCapture" \
+            --logger "trx;LogFileName=capture.trx" --results-directory "$RUNNER_TEMP/capture-results"
+          bash .github/scripts/assert-tests-ran.sh "$RUNNER_TEMP/capture-results"
 
       # The embedded OpenAPI spec and the help text need no project; a change in either is flag or field drift.
       - name: "Capture CLI schemas and help"
@@ -97,23 +117,16 @@ jobs:
             done
           } > tests/fixtures/cli/help.txt
 
-      # Backstop for a runner killed mid-test: remove smoke projects older than three hours. Prefix-scoped.
-      - name: "Sweep leaked smoke projects"
-        if: always() && steps.gate.outputs.enabled == 'true'
-        continue-on-error: true
-        run: |
-          diagrid project list --output json --no-color \
-            | jq -r '.. | objects | select((.metadata.name? // "") | startswith("aspire-smoke-"))
-                     | select((.metadata.createdAt? // "1970-01-01T00:00:00Z") | sub("\\.[0-9]+";"") | fromdateiso8601 < (now - 10800))
-                     | .metadata.name' \
-            | while read -r name; do
-                echo "Deleting leaked project $name"
-                diagrid project delete "$name" --wait --yes
-              done
+      # Fail-closed: if anything credential-shaped survived normalisation, the job stops here and no later step
+      # (including create-pull-request, which pushes to a public repo) runs.
+      - name: "Scan captured fixtures for secrets"
+        id: scan
+        if: steps.gate.outputs.enabled == 'true'
+        run: bash .github/scripts/scan-fixtures.sh tests/fixtures
 
       - name: "Open a PR when fixtures drifted"
         if: steps.gate.outputs.enabled == 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7.0.11
         with:
           branch: automation/fixture-drift
           add-paths: tests/fixtures
@@ -122,13 +135,20 @@ jobs:
           body: |
             The nightly run re-captured `tests/fixtures` from a real diagrid CLI and they differ from what is committed.
             The diff is the drift signal: read it, then fix the integration or accept the new shape.
-            Tokens, names, timestamps and ids are normalised on capture, so a diff here is a real change.
+            Tokens, names, timestamps and ids are normalised on capture and scanned for secrets before this PR, so a diff here is a real change.
 
-      - name: "Open an issue when the smoke tests fail"
-        if: steps.gate.outputs.enabled == 'true' && (steps.smoke.outcome == 'failure' || steps.capture.outcome == 'failure')
+      # Backstop for a runner killed mid-test. Fails loudly (no continue-on-error) and runs even after a failure.
+      # Placed after the PR step so a sweep failure cannot suppress the drift PR (create-pull-request needs success()).
+      - name: "Sweep leaked smoke projects"
+        id: sweep
+        if: always() && steps.gate.outputs.enabled == 'true'
+        run: bash .github/scripts/sweep-smoke-projects.sh
+
+      - name: "Open an issue when the nightly fails"
+        if: always() && steps.gate.outputs.enabled == 'true' && (steps.smoke.outcome == 'failure' || steps.capture.outcome == 'failure' || steps.schemas.outcome == 'failure' || steps.scan.outcome == 'failure' || steps.sweep.outcome == 'failure')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh issue create \
             --title "Nightly Catalyst run failed ($(date -u +%Y-%m-%d))" \
-            --body "Smoke: ${{ steps.smoke.outcome }}. Fixture capture: ${{ steps.capture.outcome }}. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            --body "Smoke: ${{ steps.smoke.outcome }}. Fixture capture: ${{ steps.capture.outcome }}. Schemas: ${{ steps.schemas.outcome }}. Secret scan: ${{ steps.scan.outcome }}. Sweep: ${{ steps.sweep.outcome }}. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

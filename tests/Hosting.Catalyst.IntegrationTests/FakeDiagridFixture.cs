@@ -31,6 +31,16 @@ public sealed class FakeDiagridFixture : IDisposable
 
     public FakeDiagridFixture()
     {
+        // `dotnet test -o <dir>` (or any shared OutputPath) copies the fake into the test's own directory, where
+        // Windows resolves a bare "diagrid" first and bypasses PATH. Say so plainly instead of failing obscurely.
+        var strayFake = Path.Combine(AppContext.BaseDirectory, OperatingSystem.IsWindows() ? "diagrid.exe" : "diagrid");
+        if (File.Exists(strayFake))
+        {
+            throw new InvalidOperationException(
+                $"Found the fake CLI at '{strayFake}', inside the test output directory. Do not use `dotnet test -o` " +
+                "(or a shared OutputPath): it puts the fake next to the tests and defeats the harness's PATH isolation.");
+        }
+
         _root = Path.Combine(Path.GetTempPath(), "fake-diagrid-" + Guid.NewGuid().ToString("N"));
         BinDirectory = Path.Combine(_root, "bin");
         Directory.CreateDirectory(BinDirectory);
