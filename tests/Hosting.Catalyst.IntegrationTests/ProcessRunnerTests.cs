@@ -25,6 +25,7 @@ public class ProcessRunnerTests
         var result = await Run(["project", "get", "demo"]);
 
         Assert.Equal(0, result.ExitCode);
+        Assert.False(result.OutputTruncated);
         Assert.True(result.StdOut.Length >= 1024 * 1024);
         Assert.True(result.StdErr.Length >= 1024 * 1024);
     }
@@ -38,6 +39,7 @@ public class ProcessRunnerTests
         var result = await Run(["project", "get", "demo"]);
 
         Assert.Equal(0, result.ExitCode);
+        Assert.False(result.OutputTruncated);
         Assert.True(result.StdOut.Length >= 1024 * 1024);
         Assert.True(result.StdErr.Length >= 1024 * 1024);
     }
@@ -49,11 +51,12 @@ public class ProcessRunnerTests
         fake.SetScenario(Single(new() { ExitCode = 0, StdOut = "done\n", LeakBackgroundChildMilliseconds = 15_000 }));
 
         var started = DateTime.UtcNow;
-        var result = await ProcessRunner.RunAsync(["project", "get", "demo"], TimeSpan.FromSeconds(20), CancellationToken.None, TimeSpan.FromSeconds(1));
+        var result = await ProcessRunner.RunAsync(["project", "get", "demo"], TimeSpan.FromSeconds(20), CancellationToken.None, TimeSpan.FromSeconds(3));
 
         Assert.Equal(0, result.ExitCode);
         Assert.Equal("done", result.StdOut.Trim());
-        Assert.True(DateTime.UtcNow - started < TimeSpan.FromSeconds(10), "drain must be bounded by the grace period");
+        Assert.True(result.OutputTruncated);
+        Assert.True(DateTime.UtcNow - started < TimeSpan.FromSeconds(5.5), "drain must be bounded by one shared grace period (3s), not one per stream");
     }
 
     [Fact(Timeout = 30_000)]

@@ -13,16 +13,16 @@ namespace Diagrid.Aspire.Hosting.Catalyst.Cli;
 internal static class ProcessRunner
 {
     /// <summary>
-    /// Runs <c>diagrid</c> with <paramref name="arguments"/> (each passed as exactly one argv entry),
-    /// <c>--no-color</c> appended and <c>NO_COLOR=1</c> set. Stdin is redirected and closed immediately so a CLI
-    /// that prompts sees EOF instead of waiting forever. Both output streams are drained while the process runs.
-    /// </summary>
-    /// <summary>
     /// How long to keep waiting for the output streams to reach EOF once the process has exited or been killed.
     /// A background child that inherited the pipes would otherwise keep them open indefinitely.
     /// </summary>
     internal static readonly TimeSpan DefaultDrainGrace = TimeSpan.FromSeconds(5);
 
+    /// <summary>
+    /// Runs <c>diagrid</c> with <paramref name="arguments"/> (each passed as exactly one argv entry),
+    /// <c>--no-color</c> appended and <c>NO_COLOR=1</c> set. Stdin is redirected and closed immediately so a CLI
+    /// that prompts sees EOF instead of waiting forever. Both output streams are drained while the process runs.
+    /// </summary>
     public static async Task<CliResult> RunAsync(
         IReadOnlyList<string> arguments,
         TimeSpan timeout,
@@ -102,17 +102,30 @@ internal static class ProcessRunner
                 throw new CatalystCliException(
                     arguments,
                     -1,
-                    await stdErrPump.WaitAsync(grace),
+                    (await DrainAsync(stdOutPump, stdErrPump, grace)).StdErr,
                     $"'diagrid {string.Join(" ", arguments)}' timed out after {stopwatch.Elapsed.TotalSeconds:0.#}s (limit {timeout.TotalSeconds:0.#}s)."
                 );
             }
 
-            // Bounded: if a background child still holds a pipe open, accept the partial output.
-            var stdOut = await stdOutPump.WaitAsync(grace);
-            var stdErr = await stdErrPump.WaitAsync(grace);
+            // Bounded: at most one grace after exit. If a background child still holds a pipe open, accept
+            // the partial output and flag it.
+            var drained = await DrainAsync(stdOutPump, stdErrPump, grace);
 
-            return new CliResult(stdOut, stdErr, process.ExitCode);
+            return new CliResult(drained.StdOut, drained.StdErr, process.ExitCode, drained.Truncated);
         }
+    }
+
+    /// <summary>Waits for both pumps to reach EOF under one shared deadline, then snapshots both buffers.</summary>
+    private static async Task<(string StdOut, string StdErr, bool Truncated)> DrainAsync(
+        StreamPump stdOut,
+        StreamPump stdErr,
+        TimeSpan grace
+    )
+    {
+        var both = Task.WhenAll(stdOut.Completion, stdErr.Completion);
+        var truncated = await Task.WhenAny(both, Task.Delay(grace)) != both;
+
+        return (stdOut.Snapshot(), stdErr.Snapshot(), truncated);
     }
 
     private static void KillTree(Process process)
@@ -158,11 +171,10 @@ internal static class ProcessRunner
             });
         }
 
-        /// <summary>Waits up to <paramref name="grace"/> for EOF, then returns whatever has been read.</summary>
-        public async Task<string> WaitAsync(TimeSpan grace)
-        {
-            await Task.WhenAny(_task, Task.Delay(grace));
+        public Task Completion => _task;
 
+        public string Snapshot()
+        {
             lock (_buffer)
             {
                 return _buffer.ToString();
