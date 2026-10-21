@@ -22,6 +22,12 @@
     <ProjectReference Include="..\..\Hosting.Catalyst\Hosting.Catalyst.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Aspire.Hosting.Dapr" Version="13.0.0" />
+    <!-- The demo wiring is compiled in from the AppHost so the tests exercise the code that actually runs. -->
+    <Compile Include="..\..\AppHost\DemoWiring.cs" Link="DemoWiring.cs" />
+    <Content Include="..\..\AppHost\Resources\*.yaml" Link="Resources\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <Content Include="..\fixtures\*.json" Link="fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

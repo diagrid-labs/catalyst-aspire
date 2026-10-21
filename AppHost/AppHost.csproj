@@ -10,6 +10,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="CommunityToolkit.Aspire.Hosting.Dapr" Version="13.0.0" />
       <ProjectReference Include="..\Hosting.Catalyst\Hosting.Catalyst.csproj" IsAspireProjectResource="false" />
       <ProjectReference Include="..\TestApi\TestApi.csproj" />
     </ItemGroup>

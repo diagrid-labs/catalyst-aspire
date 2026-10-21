@@ -1,0 +1,9 @@
+# Dapr OSS side of the USE_CATALYST switch. The component name MUST stay "pubsub": it is what
+# WithCatalystPubSub() defaults to, so TestApi addresses the same name whichever side runs.
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub
+spec:
+  type: pubsub.in-memory
+  version: v1

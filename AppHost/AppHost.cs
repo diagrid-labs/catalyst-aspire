@@ -1,30 +1,10 @@
-using System.Collections.Generic;
 using Aspire.Hosting;
-using Diagrid.Aspire.Hosting.Catalyst;
+using Diagrid.Aspire.Test.AppHost;
 using Projects;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
-var catalystProjectOne = builder
-    .AddCatalystProject(descriptor: new()
-    {
-        EnableManagedWorkflow = true,
-    })
-    .WithCatalystKvStore()
-    .WithCatalystPubSub()
-    .WithComponent(
-        "diagrid-homepage", 
-        "bindings.http", 
-        new Dictionary<string, object?>
-        {
-            ["url"] = "https://diagrid.io",
-        },
-        [ "test-api" ]
-    );
-
-builder
-    .AddProject<TestApi>("test-api")
-    .WithCatalyst(catalystProjectOne)
-    .WithSubscription("test", "/");
+// USE_CATALYST=false runs Dapr OSS (CommunityToolkit); true runs Diagrid Catalyst. TestApi is identical either way.
+DemoWiring.Configure<TestApi>(builder, DemoWiring.UseCatalyst(builder));
 
 builder.Build().Run();
