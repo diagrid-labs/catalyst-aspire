@@ -15,11 +15,11 @@ if (!string.IsNullOrEmpty(recordPath))
     {
         try
         {
-            using var fs = new FileStream(recordPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+            using var fs = new FileStream(recordPath, FileMode.Append, FileAccess.Write, FileShare.Read);
             fs.Write(new UTF8Encoding(false).GetBytes(line));
             break;
         }
-        catch (IOException) when (attempt < 50)
+        catch (IOException) when (attempt < 500)
         {
             Thread.Sleep(20);
         }

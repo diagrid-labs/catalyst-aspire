@@ -20,7 +20,21 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Hosting.Catalyst\Hosting.Catalyst.csproj" />
-    <ProjectReference Include="..\FakeDiagrid\FakeDiagrid.csproj" />
+    <!-- Build-order only. The fake must NOT be copied into this project's output: on Windows a bare
+         process name resolves from the calling process's own directory first, which would bypass PATH. -->
+    <ProjectReference Include="..\FakeDiagrid\FakeDiagrid.csproj" ReferenceOutputAssembly="false" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Share the scenario types by source, since the fake's assembly is not referenced. -->
+    <Compile Include="..\FakeDiagrid\Scenario.cs" Link="Scenario.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>FakeDiagridDir</_Parameter1>
+      <_Parameter2>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\FakeDiagrid\bin\$(Configuration)\net10.0\'))</_Parameter2>
+    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>

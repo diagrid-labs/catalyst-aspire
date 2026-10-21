@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Reflection;
 using System.Text.Json;
 using FakeDiagrid;
 
@@ -6,15 +7,27 @@ namespace Hosting.Catalyst.IntegrationTests;
 
 public sealed record FakeRunResult(int ExitCode, string StdOut, string StdErr);
 
+/// <summary>Serialises every test that uses <see cref="FakeDiagridFixture"/>: it mutates process-global environment.</summary>
+[CollectionDefinition(Name, DisableParallelization = true)]
+public sealed class FakeDiagridCollection
+{
+    public const string Name = "FakeDiagrid";
+}
+
 /// <summary>
-/// Owns a temp directory containing the fake <c>diagrid</c> executable. Tests prepend
-/// <see cref="BinDirectory"/> to PATH for the child process under test.
+/// Owns a temp directory containing the fake <c>diagrid</c> executable and makes a bare
+/// <c>diagrid</c> resolve to it by prepending <see cref="BinDirectory"/> to THIS process's PATH
+/// (a child resolves bare names via the parent's PATH on Linux and via CreateProcess on Windows).
+/// PATH, FAKE_DIAGRID_SCENARIO and FAKE_DIAGRID_RECORD are restored on Dispose. Because that is
+/// process-global, test classes using it must carry <c>[Collection(FakeDiagridCollection.Name)]</c>.
+/// The fake is deliberately NOT in the test output directory (which Windows searches first).
 /// </summary>
 public sealed class FakeDiagridFixture : IDisposable
 {
     private readonly string _root;
     private readonly string _scenarioPath;
     private readonly string _recordPath;
+    private readonly Dictionary<string, string?> _savedEnv = new();
 
     public FakeDiagridFixture()
     {
@@ -24,8 +37,10 @@ public sealed class FakeDiagridFixture : IDisposable
         _scenarioPath = Path.Combine(_root, "scenario.json");
         _recordPath = Path.Combine(_root, "record.jsonl");
 
-        // The FakeDiagrid project reference copies diagrid(.exe), diagrid.dll, runtimeconfig and deps beside the tests.
-        foreach (var file in Directory.EnumerateFiles(AppContext.BaseDirectory, "diagrid*"))
+        var source = typeof(FakeDiagridFixture).Assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Single(a => a.Key == "FakeDiagridDir").Value!;
+        foreach (var file in Directory.EnumerateFiles(source, "diagrid*"))
         {
             var dest = Path.Combine(BinDirectory, Path.GetFileName(file));
             File.Copy(file, dest, overwrite: true);
@@ -36,23 +51,33 @@ public sealed class FakeDiagridFixture : IDisposable
         }
 
         SetScenario(new Scenario());
+
+        SetEnv("PATH", BinDirectory + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH"));
+        SetEnv("FAKE_DIAGRID_SCENARIO", _scenarioPath);
+        SetEnv("FAKE_DIAGRID_RECORD", _recordPath);
     }
 
     public string BinDirectory { get; }
 
-    public string ScenarioPath => _scenarioPath;
-
-    public string RecordPath => _recordPath;
-
     public void SetScenario(Scenario s) => File.WriteAllText(_scenarioPath, JsonSerializer.Serialize(s));
 
-    public IReadOnlyList<string[]> Invocations =>
-        File.Exists(_recordPath)
-            ? File.ReadAllLines(_recordPath)
-                .Where(l => l.Length > 0)
-                .Select(l => JsonSerializer.Deserialize<string[]>(l)!)
-                .ToList()
-            : [];
+    public IReadOnlyList<string[]> Invocations
+    {
+        get
+        {
+            if (!File.Exists(_recordPath)) return [];
+            // FileShare.ReadWrite so a concurrently appending fake is never denied.
+            using var fs = new FileStream(_recordPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(fs);
+            var list = new List<string[]>();
+            string? line;
+            while ((line = reader.ReadLine()) is not null)
+            {
+                if (line.Length > 0) list.Add(JsonSerializer.Deserialize<string[]>(line)!);
+            }
+            return list;
+        }
+    }
 
     public void Reset()
     {
@@ -60,16 +85,15 @@ public sealed class FakeDiagridFixture : IDisposable
         SetScenario(new Scenario());
     }
 
-    /// <summary>Applies the fake's PATH and environment to a process start info.</summary>
+    /// <summary>Applies the fake's PATH and environment to a process start info (also inherited by default).</summary>
     public void Configure(ProcessStartInfo psi)
     {
-        var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-        psi.Environment["PATH"] = BinDirectory + Path.PathSeparator + path;
+        psi.Environment["PATH"] = Environment.GetEnvironmentVariable("PATH");
         psi.Environment["FAKE_DIAGRID_SCENARIO"] = _scenarioPath;
         psi.Environment["FAKE_DIAGRID_RECORD"] = _recordPath;
     }
 
-    /// <summary>Runs <c>diagrid</c> by bare name so it is resolved through PATH.</summary>
+    /// <summary>Runs <c>diagrid</c> by bare name so it is resolved through PATH, as production code does.</summary>
     public async Task<FakeRunResult> RunAsync(params string[] args)
     {
         var psi = new ProcessStartInfo("diagrid")
@@ -92,6 +116,13 @@ public sealed class FakeDiagridFixture : IDisposable
 
     public void Dispose()
     {
+        foreach (var (key, value) in _savedEnv) Environment.SetEnvironmentVariable(key, value);
         try { Directory.Delete(_root, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+    }
+
+    private void SetEnv(string key, string? value)
+    {
+        _savedEnv[key] = Environment.GetEnvironmentVariable(key);
+        Environment.SetEnvironmentVariable(key, value);
     }
 }
