@@ -1,0 +1,33 @@
+{
+  "_capturedFrom": "diagrid CLI 1.85.0, 2026-10-21 (hand-built from the CLI golden structure; Task 16 re-captures from a real CLI)",
+  "apiVersion": "cra.diagrid.io/v1beta1",
+  "kind": "Agent",
+  "metadata": {
+    "createdAt": "2026-10-21T09:00:00Z",
+    "name": "demo"
+  },
+  "spec": {
+    "endpoint": {
+      "url": "http://localhost:5000"
+    }
+  },
+  "status": {
+    "appIds": [
+      {
+        "apiVersion": "cra.diagrid.io/v1beta1",
+        "kind": "AppIdentity",
+        "metadata": {
+          "name": "demo",
+          "namespace": "demo-project"
+        },
+        "spec": {},
+        "status": {
+          "apiToken": "diagrid://mock-api-token",
+          "appToken": "mock-app-token"
+        }
+      }
+    ],
+    "managedAppId": "demo",
+    "status": "ready"
+  }
+}
