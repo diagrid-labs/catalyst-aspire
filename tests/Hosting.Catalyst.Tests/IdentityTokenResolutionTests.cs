@@ -25,5 +25,39 @@ public class IdentityTokenResolutionTests
         Assert.Contains("my-agent", ex.Message);
         Assert.Contains("https://api.self-hosted.example/", ex.Message);
         Assert.Contains("Agent API may be unavailable", ex.Message);
+        Assert.DoesNotContain("appid", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    private static CliIdentityDetails Parse(string json)
+        => JsonSerializer.Deserialize<CliIdentityDetails>(json)!;
+
+    [Fact]
+    public void Top_level_token_wins_over_the_nested_one()
+        => Assert.Equal("top", Parse("""
+            {"status":{"apiToken":"top","appIds":[{"status":{"apiToken":"nested"}}]}}
+            """).ResolveApiToken("demo", "https://api.example/"));
+
+    [Fact]
+    public void Empty_top_level_token_falls_back_to_the_nested_one()
+        => Assert.Equal("nested", Parse("""
+            {"status":{"apiToken":"","appIds":[{"status":{"apiToken":"nested"}}]}}
+            """).ResolveApiToken("demo", "https://api.example/"));
+
+    [Fact]
+    public void Empty_tokens_at_both_paths_throw()
+        => Assert.Throws<InvalidOperationException>(() => Parse("""
+            {"status":{"apiToken":"","appIds":[{"status":{"apiToken":""}}]}}
+            """).ResolveApiToken("demo", "https://api.example/"));
+
+    [Theory]
+    [InlineData("""{"status":{"appIds":[]}}""")]
+    [InlineData("""{"status":{"appIds":null}}""")]
+    [InlineData("""{"status":{"appIds":[null]}}""")]
+    [InlineData("""{"status":{"appIds":[{}]}}""")]
+    [InlineData("""{"status":{"appIds":[{"status":null}]}}""")]
+    [InlineData("""{"status":null}""")]
+    [InlineData("""{}""")]
+    public void Omitted_or_null_fields_throw_a_clean_InvalidOperationException(string json)
+        => Assert.Throws<InvalidOperationException>(
+            () => Parse(json).ResolveApiToken("demo", "https://api.example/"));
 }
