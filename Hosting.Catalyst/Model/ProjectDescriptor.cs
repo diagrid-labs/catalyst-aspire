@@ -1,11 +1,11 @@
 namespace Diagrid.Aspire.Hosting.Catalyst.Model;
 
 /// <remarks>
-/// Region, RegionGroup, DeployManagedKv, DeployManagedPubsub, GlobalIdMaxBodySize and
-/// EnableWorkflowHistorySigning apply only when the project is created. Provisioning passes
-/// --ignore-if-exists, so against a project that already exists they are silently ignored: the call
-/// succeeds and nothing changes. This matters most for EnableWorkflowHistorySigning, which cannot be
-/// changed after creation.
+/// Every property here applies only when the project is created: EnableManagedWorkflow, Region, RegionGroup,
+/// DeployManagedKv, DeployManagedPubsub, GlobalIdMaxBodySize, EnableWorkflowHistorySigning and
+/// DisableAppTunnels. Provisioning passes --ignore-if-exists and never runs `project update`, so against a
+/// project that already exists they are silently ignored: the call succeeds and nothing changes. This matters
+/// most for EnableWorkflowHistorySigning, which cannot be changed after creation.
 /// </remarks>
 public record ProjectDescriptor
 {

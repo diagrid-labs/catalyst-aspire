@@ -77,7 +77,8 @@ public static class ResourceBuilderExtensions
             return entryPointNamespace.Replace(".", "-").ToLowerInvariant();
 
         throw new ArgumentException(
-            "The Catalyst project name could not be inferred from the entry assembly. Pass it explicitly to AddCatalystProject.",
+            "The Catalyst project name could not be inferred: the entry point has no namespace, which is the case for an AppHost "
+            + "written with top-level statements. Pass a name explicitly, for example AddCatalystProject(\"my-project\").",
             "customProjectName");
     }
 
@@ -413,7 +414,7 @@ public static class ResourceBuilderExtensions
     /// <summary>
     ///     Adds a Catalyst-managed PubSub to the Catalyst project.
     ///     <br /><br />
-    ///     Please note that does not add a component to the project. 
+    ///     The Diagrid CLI creates the fronting component, named after the store, so this does not add one.
     /// </summary>
     /// <param name="catalystProject"></param>
     /// <param name="name"></param>
@@ -462,7 +463,7 @@ public static class ResourceBuilderExtensions
     /// <summary>
     ///     Adds a Catalyst-managed KV store to the Catalyst project.
     ///     <br /><br />
-    ///     Please note that does not add a component to the project.
+    ///     The Diagrid CLI creates the fronting component, named after the store, so this does not add one.
     /// </summary>
     /// <param name="catalystProject"></param>
     /// <param name="name"></param>

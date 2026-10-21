@@ -6,6 +6,7 @@ using Ext = Diagrid.Aspire.Hosting.Catalyst.ResourceBuilderExtensions;
 namespace Hosting.Catalyst.Tests;
 
 // Expected values are what the Diagrid CLI's ProductConsoleURL produces for product "catalyst".
+[Collection("DIAGRID_URL")]
 public class DashboardUrlTests
 {
     [Theory]
@@ -33,8 +34,28 @@ public class DashboardUrlTests
             Ext.DashboardUrl(Environment.GetEnvironmentVariable("DIAGRID_URL")),
             url.Url);
     }
+
+    [Fact]
+    public void Reads_DIAGRID_URL_from_the_environment()
+    {
+        var previous = Environment.GetEnvironmentVariable("DIAGRID_URL");
+        Environment.SetEnvironmentVariable("DIAGRID_URL", "https://api.r1.stg.diagrid.io/");
+        try
+        {
+            var builder = DistributedApplication.CreateBuilder();
+            var project = builder.AddCatalystProject("demo");
+
+            var url = Assert.Single(project.Resource.Annotations.OfType<ResourceUrlAnnotation>());
+            Assert.Equal("https://catalyst.stg.diagrid.io/admin/organization", url.Url);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DIAGRID_URL", previous);
+        }
+    }
 }
 
+[Collection("DIAGRID_URL")]
 public class ProjectNameAndWorkingDirectoryTests
 {
     [Fact]
@@ -52,6 +73,16 @@ public class ProjectNameAndWorkingDirectoryTests
     {
         var ex = Assert.Throws<ArgumentException>(() => Ext.ResolveProjectName(null, ns));
         Assert.Equal("customProjectName", ex.ParamName);
+    }
+
+    // Measured: an AppHost written with top-level statements has entry type "Program" in the global namespace,
+    // so Namespace is null. That is the default Aspire template, so this is the common no-name case.
+    [Fact]
+    public void The_top_level_statements_case_tells_the_user_to_pass_a_name()
+    {
+        var ex = Assert.Throws<ArgumentException>(() => Ext.ResolveProjectName(null, null));
+        Assert.Contains("top-level statements", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("AddCatalystProject(\"my-project\")", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
