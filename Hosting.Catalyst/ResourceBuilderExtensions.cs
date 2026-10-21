@@ -91,6 +91,30 @@ public static class ResourceBuilderExtensions
     /// <exception cref="ArgumentException">The Aspire resource name is not a valid Catalyst name.</exception>
     public static IResourceBuilder<ResourceType> WithCatalystApp<ResourceType>(this IResourceBuilder<ResourceType> resourceBuilder, IResourceBuilder<CatalystProject>? catalystProjectBuilder = null)
     where ResourceType : Resource, IResourceWithEnvironment, IResourceWithWaitSupport
+        => resourceBuilder.WithCatalystIdentity(IdentityKind.App, nameof(WithCatalystApp), catalystProjectBuilder);
+
+    /// <summary>
+    ///     Configures a resource to run as a Catalyst agent (<c>diagrid agent create</c>) rather than an app. The proxy
+    ///     wiring is the same as for an app. Creating an agent provisions the agent registry itself, so the project does
+    ///     not need to have been created with a managed KV store.
+    /// </summary>
+    /// <remarks>
+    ///     Call this after the resource's HTTP endpoint is declared (for example <c>WithHttpEndpoint</c>). Agent support
+    ///     depends on the Catalyst deployment: when it has no agent API, provisioning fails naming the resource.
+    /// </remarks>
+    /// <param name="resourceBuilder"></param>
+    /// <param name="catalystProjectBuilder"></param>
+    /// <exception cref="ArgumentException">The Aspire resource name is not a valid Catalyst name.</exception>
+    public static IResourceBuilder<ResourceType> WithCatalystAgent<ResourceType>(this IResourceBuilder<ResourceType> resourceBuilder, IResourceBuilder<CatalystProject>? catalystProjectBuilder = null)
+    where ResourceType : Resource, IResourceWithEnvironment, IResourceWithWaitSupport
+        => resourceBuilder.WithCatalystIdentity(IdentityKind.Agent, nameof(WithCatalystAgent), catalystProjectBuilder);
+
+    private static IResourceBuilder<ResourceType> WithCatalystIdentity<ResourceType>(
+        this IResourceBuilder<ResourceType> resourceBuilder,
+        IdentityKind kind,
+        string publicMethodName,
+        IResourceBuilder<CatalystProject>? catalystProjectBuilder)
+    where ResourceType : Resource, IResourceWithEnvironment, IResourceWithWaitSupport
     {
         CatalystNames.EnsureValidResourceName(resourceBuilder.Resource.Name);
 
@@ -98,7 +122,7 @@ public static class ResourceBuilderExtensions
         var catalystProjects = applicationBuilder.EnsureCatalystResources();
 
         if (catalystProjects.Count > 1 && catalystProjectBuilder is null)
-            throw new($"Your Aspire orchestration has multiple Catalyst projects configured. Please specify which one to use when calling {nameof(WithCatalystApp)}.");
+            throw new($"Your Aspire orchestration has multiple Catalyst projects configured. Please specify which one to use when calling {publicMethodName}.");
 
         catalystProjectBuilder ??= applicationBuilder.CreateResourceBuilder(catalystProjects.Single());
 
@@ -138,7 +162,7 @@ public static class ResourceBuilderExtensions
             .WaitFor(catalystProxy)
             .WithChildRelationship(catalystProxy);
 
-        catalystProjectBuilder.Resource.Identities[resourceBuilder.Resource] = new(IdentityKind.App, new());
+        catalystProjectBuilder.Resource.Identities[resourceBuilder.Resource] = new(kind, new());
 
         resourceBuilder.WithEnvironment(async (context) =>
         {

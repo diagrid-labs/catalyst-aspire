@@ -143,6 +143,21 @@ public class CliCatalystProvisioner : CatalystProvisioner
         };
     }
 
+    public async Task CreateAgent(string name, string projectName, CancellationToken cancellationToken)
+    {
+        await Commands.CreateIdentity(IdentityKind.Agent, name, new() { Project = projectName }, cancellationToken);
+    }
+
+    public async Task<AppDetails> GetAgentDetails(string name, string projectName, CancellationToken cancellationToken)
+    {
+        var details = await Commands.GetIdentityDetails(IdentityKind.Agent, name, projectName, cancellationToken);
+
+        return new()
+        {
+            ApiToken = details.ResolveApiToken(name, IdentityKind.Agent, $"project '{projectName}'"),
+        };
+    }
+
     public async Task UpsertComponent(ComponentDescriptor descriptor, string projectName, bool isManagedServiceComponent, CancellationToken cancellationToken)
     {
         var options = new CreateComponentOptions { Project = projectName };

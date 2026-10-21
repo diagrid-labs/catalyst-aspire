@@ -84,6 +84,16 @@ public interface CatalystProvisioner
     Task<AppDetails> GetAppDetails(string name, string projectName, CancellationToken cancellationToken);
 
     /// <summary>
+    ///     Creates an agent in Catalyst (<c>agent create --ignore-if-exists</c>).
+    /// </summary>
+    Task CreateAgent(string name, string projectName, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Gets details about an agent in Catalyst. Its token is read from the embedded app identity.
+    /// </summary>
+    Task<AppDetails> GetAgentDetails(string name, string projectName, CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Reconciles a component: <c>component update</c> when <paramref name="isManagedServiceComponent"/> (its name is a
     ///     declared KV store or pub/sub, so the CLI already created it), otherwise <c>component create --ignore-if-exists</c>.
     ///     The caller decides from declared names; there is no <c>component get</c> probe.

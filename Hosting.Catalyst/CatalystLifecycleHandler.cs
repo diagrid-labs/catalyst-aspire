@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Aspire.Hosting.ApplicationModel;
 using Diagrid.Aspire.Hosting.Catalyst.Logo;
+using Diagrid.Aspire.Hosting.Catalyst.Model;
 using Microsoft.Extensions.Logging;
 
 namespace Diagrid.Aspire.Hosting.Catalyst;
@@ -177,17 +178,27 @@ internal class CatalystLifecycleHandler(
     {
         await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
         {
-            State = new("Ensuring applications", KnownResourceStateStyles.Info),
+            State = new("Ensuring identities", KnownResourceStateStyles.Info),
         });
 
         foreach (var pair in catalystProject.Identities)
         {
             try
             {
-                await provisioner.CreateApp(pair.Key.Name, catalystProject.ProjectName, cancellationToken);
-                var app = await provisioner.GetAppDetails(pair.Key.Name, catalystProject.ProjectName, cancellationToken);
+                var name = pair.Key.Name;
+                var project = catalystProject.ProjectName;
 
-                pair.Value.Details.SetResult(app);
+                switch (pair.Value.Kind)
+                {
+                    case IdentityKind.Agent:
+                        await provisioner.CreateAgent(name, project, cancellationToken);
+                        pair.Value.Details.SetResult(await provisioner.GetAgentDetails(name, project, cancellationToken));
+                        break;
+                    default:
+                        await provisioner.CreateApp(name, project, cancellationToken);
+                        pair.Value.Details.SetResult(await provisioner.GetAppDetails(name, project, cancellationToken));
+                        break;
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
