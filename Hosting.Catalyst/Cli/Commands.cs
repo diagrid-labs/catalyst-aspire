@@ -34,10 +34,108 @@ internal static class Commands
         AddOptionalArgument(arguments, "--topic", options.Topic);
         AddOptionalArgument(arguments, "--route", options.Route);
         AddScopesArgument(arguments, options.Scopes);
+        AddFlagArgument(arguments, "--bulk", options.Bulk);
+        AddBulkTuningArguments(arguments, options);
         AddOptionalArgument(arguments, "--project", options.Project);
         AddFlagArgument(arguments, "--wait", options.Wait);
 
         return arguments.ToArray();
+    }
+
+    /// <summary>
+    ///     <c>subscription update</c> sends the declared values wholesale (the AppHost is the source of truth): topic,
+    ///     route, component and scopes always, and <c>--bulk</c> explicitly true or false so a subscription can leave bulk
+    ///     mode. An empty scope list is sent as <c>[]</c>. The bulk count and duration are sent only when declared: the
+    ///     CLI offers no way to unset them.
+    /// </summary>
+    internal static string[] BuildUpdateSubscriptionArgs(string name, CreateSubscriptionOptions options)
+    {
+        var arguments = new List<string> { "subscription", "update", name };
+
+        AddOptionalArgument(arguments, "--component", options.Component);
+        AddOptionalArgument(arguments, "--topic", options.Topic);
+        AddOptionalArgument(arguments, "--route", options.Route);
+        arguments.Add("--scopes");
+        arguments.Add(options.Scopes.Count > 0 ? string.Join(",", options.Scopes) : "[]");
+        arguments.Add(options.Bulk ? "--bulk=true" : "--bulk=false");
+        AddBulkTuningArguments(arguments, options);
+        AddOptionalArgument(arguments, "--project", options.Project);
+        AddFlagArgument(arguments, "--wait", options.Wait);
+
+        return arguments.ToArray();
+    }
+
+    public static async Task UpdateSubscription(
+        string name,
+        CreateSubscriptionOptions options,
+        CancellationToken cancellationToken
+    )
+    {
+        var arguments = BuildUpdateSubscriptionArgs(name, options);
+        var result = await ProcessRunner.RunAsync(arguments, CreateTimeout, cancellationToken);
+
+        result.EnsureSuccess(arguments);
+    }
+
+    internal static string[] BuildGetSubscriptionArgs(string name, string projectName)
+        => ["subscription", "get", name, "--project", projectName];
+
+    /// <summary>
+    ///     Whether the subscription exists, by the exit code of <c>subscription get</c> alone. The CLI exits 1 for every
+    ///     error, so a network or auth failure reads as "absent" here; the create that follows then fails loudly.
+    /// </summary>
+    public static async Task<bool> SubscriptionExists(
+        string name,
+        string projectName,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var result = await ProcessRunner.RunAsync(BuildGetSubscriptionArgs(name, projectName), ReadTimeout, cancellationToken);
+        return result.ExitCode == 0;
+    }
+
+    private static void AddBulkTuningArguments(IList<string> arguments, CreateSubscriptionOptions options)
+    {
+        AddOptionalIntArgument(arguments, "--bulk-max-messages-count", options.BulkMaxMessagesCount);
+
+        if (options.BulkMaxAwaitDuration is { } duration)
+        {
+            arguments.Add("--bulk-max-await-duration");
+            arguments.Add(FormatGoDuration(duration));
+        }
+    }
+
+    /// <summary>Formats as a Go duration (<c>2s</c>, <c>1m30s</c>, <c>250ms</c>, <c>1h</c>): the CLI rejects <c>00:00:02</c>.</summary>
+    internal static string FormatGoDuration(TimeSpan duration)
+    {
+        if (duration < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(duration), duration, "A bulk await duration cannot be negative.");
+        }
+
+        var totalMilliseconds = (long) Math.Round(duration.TotalMilliseconds);
+
+        if (totalMilliseconds == 0)
+        {
+            return "0s";
+        }
+
+        var hours = totalMilliseconds / 3_600_000;
+        var minutes = totalMilliseconds / 60_000 % 60;
+        var seconds = totalMilliseconds / 1000 % 60;
+        var milliseconds = totalMilliseconds % 1000;
+        var text = new System.Text.StringBuilder();
+
+        if (hours > 0) text.Append(hours).Append('h');
+        if (minutes > 0) text.Append(minutes).Append('m');
+        if (seconds > 0 || milliseconds > 0)
+        {
+            text.Append(seconds);
+            if (milliseconds > 0) text.Append('.').Append(milliseconds.ToString("000", System.Globalization.CultureInfo.InvariantCulture).TrimEnd('0'));
+            text.Append('s');
+        }
+
+        return text.ToString();
     }
 
     public static async Task CreateSubscription(

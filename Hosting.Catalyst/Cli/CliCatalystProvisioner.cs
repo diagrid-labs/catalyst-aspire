@@ -26,17 +26,30 @@ public class CliCatalystProvisioner : CatalystProvisioner
         }
     }
 
-    public async Task CreateSubscription(string projectName, SubscriptionDescriptor descriptor, CancellationToken cancellationToken)
+    public async Task UpsertSubscription(string projectName, SubscriptionDescriptor descriptor, CancellationToken cancellationToken)
     {
-        // subscription create has no --ignore-if-exists, so a failure here is a real failure: let it propagate.
-        await Commands.CreateSubscription(descriptor.Name, new()
+        var options = new CreateSubscriptionOptions
         {
             Project = projectName,
             Component = descriptor.Component,
             Topic = descriptor.Topic,
             Route = descriptor.Route,
             Scopes = descriptor.Scopes,
-        }, cancellationToken);
+            Bulk = descriptor.Bulk,
+            BulkMaxMessagesCount = descriptor.BulkMaxMessagesCount,
+            BulkMaxAwaitDuration = descriptor.BulkMaxAwaitDuration,
+        };
+
+        // subscription create has no --ignore-if-exists, so probe. The probe reads only the exit code, and the CLI
+        // exits 1 for every error: a failed probe falls through to create, which fails loudly if the cause was real.
+        if (await Commands.SubscriptionExists(descriptor.Name, projectName, cancellationToken))
+        {
+            await Commands.UpdateSubscription(descriptor.Name, options, cancellationToken);
+        }
+        else
+        {
+            await Commands.CreateSubscription(descriptor.Name, options, cancellationToken);
+        }
     }
 
     public async Task CreateProject(string projectName, ProjectDescriptor descriptor, CancellationToken cancellationToken)

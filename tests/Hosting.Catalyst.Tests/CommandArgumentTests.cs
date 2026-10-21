@@ -172,6 +172,8 @@ public class CommandArgumentTests
         (nameof(Commands.BuildGetKvStoreArgs), Commands.BuildGetKvStoreArgs("kv", "demo")),
         (nameof(Commands.BuildGetPubSubArgs), Commands.BuildGetPubSubArgs("ps", "demo")),
         (nameof(Commands.BuildCreateSubscriptionArgs), Commands.BuildCreateSubscriptionArgs("sub", new() { Project = "demo", Component = "ps", Topic = "t", Route = "/r" })),
+        (nameof(Commands.BuildUpdateSubscriptionArgs), Commands.BuildUpdateSubscriptionArgs("sub", new() { Project = "demo", Component = "ps", Topic = "t", Route = "/r" })),
+        (nameof(Commands.BuildGetSubscriptionArgs), Commands.BuildGetSubscriptionArgs("sub", "demo")),
     ];
 
     [Fact]

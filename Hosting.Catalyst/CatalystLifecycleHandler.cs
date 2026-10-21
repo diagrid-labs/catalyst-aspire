@@ -314,7 +314,7 @@ internal class CatalystLifecycleHandler(
         {
             try
             {
-                await provisioner.CreateSubscription(catalystProject.ProjectName, pair.Value, cancellationToken);
+                await provisioner.UpsertSubscription(catalystProject.ProjectName, pair.Value, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

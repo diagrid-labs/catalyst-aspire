@@ -20,13 +20,16 @@ public interface CatalystProvisioner
     Task Init(ILogger logger, CancellationToken cancellationToken);
 
     /// <summary>
-    ///     Creates a subscription in Catalyst.
+    ///     Reconciles a subscription: <c>subscription get</c> (exit code only), then <c>subscription update</c> when it
+    ///     exists or <c>subscription create</c> when it does not, because <c>subscription create</c> has no
+    ///     <c>--ignore-if-exists</c>. The AppHost is the source of truth: an update sends the declared topic, route,
+    ///     component, scopes and bulk mode wholesale, replacing any change made outside the AppHost.
     /// </summary>
     /// <param name="projectName"></param>
     /// <param name="descriptor"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    Task CreateSubscription(string projectName, SubscriptionDescriptor descriptor, CancellationToken cancellationToken);
+    Task UpsertSubscription(string projectName, SubscriptionDescriptor descriptor, CancellationToken cancellationToken);
 
     /// <summary>
     ///     Creates a project in Catalyst.

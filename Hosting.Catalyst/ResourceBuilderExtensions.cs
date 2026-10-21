@@ -191,6 +191,30 @@ public static class ResourceBuilderExtensions
         string topic,
         string route
     ) where ResourceType : Resource, IResourceWithEnvironment, IResourceWithWaitSupport
+        => resourceBuilder.WithSubscription(name, component, topic, route, bulk: false, bulkMaxMessagesCount: null, bulkMaxAwaitDuration: null);
+
+    /// <summary>
+    ///     Adds a subscription that delivers messages in bulk.
+    /// </summary>
+    /// <param name="resourceBuilder"></param>
+    /// <param name="name">The Catalyst subscription name; must be unique in the project.</param>
+    /// <param name="component">The pub/sub component.</param>
+    /// <param name="topic"></param>
+    /// <param name="route"></param>
+    /// <param name="bulk">Whether to enable bulk subscription.</param>
+    /// <param name="bulkMaxMessagesCount">The most messages in one bulk delivery, or null for the Catalyst default.</param>
+    /// <param name="bulkMaxAwaitDuration">The longest to wait for a bulk delivery to fill, or null for the Catalyst default.</param>
+    /// <typeparam name="ResourceType"></typeparam>
+    public static IResourceBuilder<ResourceType> WithSubscription<ResourceType>(
+        this IResourceBuilder<ResourceType> resourceBuilder,
+        string name,
+        string component,
+        string topic,
+        string route,
+        bool bulk,
+        int? bulkMaxMessagesCount,
+        TimeSpan? bulkMaxAwaitDuration
+    ) where ResourceType : Resource, IResourceWithEnvironment, IResourceWithWaitSupport
     {
         var applicationBuilder = resourceBuilder.ApplicationBuilder;
         var catalystProject = applicationBuilder
@@ -200,16 +224,34 @@ public static class ResourceBuilderExtensions
         if (catalystProject is null)
             throw new("This resource is not associated with a Catalyst project.");
         
+        var appName = resourceBuilder.Resource.Name;
+
+        if (catalystProject.Subscriptions.TryGetValue(name, out var existing))
+        {
+            var sameTriple = existing.Scopes.Contains(appName) && existing.Component == component && existing.Topic == topic;
+
+            throw new ArgumentException(
+                sameTriple
+                    ? $"The app '{appName}' already subscribes to topic '{topic}' on component '{component}' (subscription '{name}'). "
+                        + "Each app, component and topic combination can have only one subscription."
+                    : $"The subscription name '{name}' is already used for topic '{existing.Topic}' on component '{existing.Component}'; "
+                        + $"it cannot also be used for app '{appName}', component '{component}', topic '{topic}'. Give one of them a different name.",
+                nameof(name));
+        }
+
         catalystProject.Subscriptions.Add(name, new()
         {
             Name = name,
             Component = component,
             Topic = topic,
             Route = route,
-            Scopes = 
+            Scopes =
             [
-                resourceBuilder.Resource.Name,
+                appName,
             ],
+            Bulk = bulk,
+            BulkMaxMessagesCount = bulkMaxMessagesCount,
+            BulkMaxAwaitDuration = bulkMaxAwaitDuration,
         });
 
         return resourceBuilder;
@@ -226,7 +268,8 @@ public static class ResourceBuilderExtensions
     public static IResourceBuilder<ResourceType> WithSubscription<ResourceType>(this IResourceBuilder<ResourceType> resourceBuilder, string topic, string path)
     where ResourceType : Resource, IResourceWithEnvironment, IResourceWithWaitSupport
     {
-        var name = $"{resourceBuilder.Resource.Name}-{SamplePubsubName}";
+        // The topic is part of the name: two topics on one app must not collide on the project's subscription names.
+        var name = CatalystNames.SubscriptionName(resourceBuilder.Resource.Name, SamplePubsubName, topic);
 
         return resourceBuilder.WithSubscription(name, SamplePubsubName, topic, path);
     }

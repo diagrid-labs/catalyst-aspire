@@ -270,7 +270,9 @@ public class PreflightTests
     [InlineData("VerifyPubSub", "pubsub get")]
     [InlineData("VerifyKvStore", "kv get")]
     [InlineData("CreateComponent", "component create")]
+    [InlineData("ProbeSubscription", "subscription get")]
     [InlineData("CreateSubscription", "subscription create")]
+    [InlineData("UpdateSubscription", "subscription update")]
     public async Task Cancelling_at_each_provisioning_step_is_quiet(string site, string hungCommand)
     {
         using var fake = new FakeDiagridFixture();
@@ -279,6 +281,8 @@ public class PreflightTests
             Responses =
             [
                 new() { ArgsMatch = hungCommand, SleepMilliseconds = 60_000 },
+                // The probe must report "absent" for the create site to be reached (the others see it present).
+                .. (site == "CreateSubscription" ? new[] { new ScenarioResponse { ArgsMatch = "subscription get", ExitCode = 1 } } : Array.Empty<ScenarioResponse>()),
                 .. HandlerHarness.PreflightPasses(),
                 ProjectGetReady(),
                 AnythingElseSucceeds(),
@@ -302,7 +306,9 @@ public class PreflightTests
                 case "CreateComponent":
                     project.Components.Add("c", new() { Name = "c", Type = "state.in-memory", Metadata = new Dictionary<string, object?> { ["k"] = "v" } });
                     break;
+                case "ProbeSubscription":
                 case "CreateSubscription":
+                case "UpdateSubscription":
                     project.Subscriptions.Add("s", new() { Name = "s", Component = "ps", Topic = "t", Route = "/r" });
                     break;
             }

@@ -48,7 +48,7 @@ public class IdempotencyTests
 
         if (includeSubscription)
         {
-            await provisioner.CreateSubscription("demo",
+            await provisioner.UpsertSubscription("demo",
                 new() { Name = "sub", Component = "ps", Topic = "t", Route = "/r" }, ct);
         }
     }
@@ -80,19 +80,20 @@ public class IdempotencyTests
         Assert.Equal(1, result.ExitCode);
     }
 
-    // PINS CURRENT BEHAVIOUR. subscription create has no --ignore-if-exists and the swallowing catch is gone, so
-    // re-running an AppHost that declares a subscription still fails. Task 12 (UpsertSubscription with a
-    // `subscription get` probe) closes this; when it lands this test MUST be updated to expect success.
+    // Task 12 closed the gap this test used to pin (it was Subscription_create_on_rerun_still_fails_loudly_until_task_12,
+    // asserting that a rerun threw "already exists" from `subscription create`). subscription create has no
+    // --ignore-if-exists, so a rerun now probes with `subscription get` and reconciles with `subscription update`.
+    // Mutation: call `subscription create` unconditionally again -> this scenario answers it with exit 1 and the test throws.
     [Fact(Timeout = 60_000)]
-    public async Task Subscription_create_on_rerun_still_fails_loudly_until_task_12()
+    public async Task Subscription_on_rerun_is_reconciled_with_get_then_update_instead_of_failing()
     {
         using var fake = new FakeDiagridFixture();
         fake.SetScenario(EverythingAlreadyExists());
 
-        var ex = await Assert.ThrowsAsync<CatalystCliException>(() => ProvisionAsync(includeSubscription: true));
+        await ProvisionAsync(includeSubscription: true);
 
-        Assert.Equal(["subscription", "create"], ex.Arguments.Take(2));
-        Assert.Contains("already exists", ex.Message);
+        var subscriptionCalls = fake.Invocations.Where(i => i[0] == "subscription").Select(i => i[1]).ToList();
+        Assert.Equal(["get", "update"], subscriptionCalls);
     }
 
     [Fact(Timeout = 60_000)]
@@ -139,7 +140,7 @@ public class IdempotencyTests
         fake.SetScenario(new Scenario { Responses = [new() { ExitCode = 1, StdErr = "Error: boom" }] });
 
         await Assert.ThrowsAsync<CatalystCliException>(
-            () => new CliCatalystProvisioner().CreateSubscription("demo",
+            () => new CliCatalystProvisioner().UpsertSubscription("demo",
                 new() { Name = "sub", Component = "ps", Topic = "t", Route = "/r" }, default));
     }
 }
