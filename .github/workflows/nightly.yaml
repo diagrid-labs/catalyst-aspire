@@ -128,7 +128,7 @@ jobs:
             for cmd in "project create" "project get" "project delete" "app create" "app get" "agent create" "agent get" \
                        "appid get" "component create" "pubsub create" "kv create" "subscription create" "subscription update"; do
               echo "## diagrid $cmd --help"
-              diagrid $cmd --help --no-color
+              diagrid $cmd --help --no-color=true
               echo
             done
           } > tests/fixtures/cli/help.txt
@@ -139,6 +139,17 @@ jobs:
         id: scan
         if: steps.gate.outputs.enabled == 'true'
         run: bash .github/scripts/scan-fixtures.sh tests/fixtures
+
+      # POSITIVE CONTROL for the credential-removal proof below: the identical authenticated read must SUCCEED while
+      # the credential still exists. Without it, "the read fails after removal" proves nothing (the previous probe
+      # failed with a usage error either way). Also proves that login worked before the sweep relies on it.
+      - name: "Positive control (authenticated read works)"
+        id: control
+        if: always() && steps.gate.outputs.enabled == 'true'
+        env:
+          HOME: ${{ runner.temp }}/catalyst-home
+          XDG_CONFIG_HOME: ${{ runner.temp }}/catalyst-home/.config
+        run: bash .github/scripts/probe-auth.sh expect-authenticated
 
       # Backstop for a runner killed mid-test. Fails loudly (no continue-on-error) and runs even after a failure.
       # Runs BEFORE the credential is removed (it needs it) and before the PR step, whose condition therefore must not
@@ -158,22 +169,24 @@ jobs:
       - name: "Remove stored credentials"
         id: logout
         if: always() && steps.gate.outputs.enabled == 'true'
+        env:
+          CONTROL_OUTCOME: ${{ steps.control.outcome }}
         run: |
           iso="$RUNNER_TEMP/catalyst-home"
           # Observed locally: the CLI also writes .diagrid/config.json (an org id) into the CURRENT directory, so delete
           # the workspace copy too; the proof below then covers whichever location the credential used.
           rm -rf "$iso" "$GITHUB_WORKSPACE/.diagrid"
           mkdir -p "$iso/.config"
-          if HOME="$iso" XDG_CONFIG_HOME="$iso/.config" diagrid project list --output json --no-color < /dev/null > /dev/null 2>&1; then
-            echo "::error::still authenticated from the isolated HOME after deleting it"
+          # The negative probe is only meaningful if the same probe succeeded while the credential existed.
+          if [ "$CONTROL_OUTCOME" != "success" ]; then
+            echo "::error::the positive control did not succeed ($CONTROL_OUTCOME), so removal cannot be verified."
             exit 1
           fi
-          if diagrid project list --output json --no-color < /dev/null > /dev/null 2>&1; then
-            echo "::error::still authenticated from the runner's real HOME: the credential leaked outside the isolated HOME"
-            exit 1
-          fi
+          # Each probe must fail WITH an unauthenticated signature, not merely fail (timeout 60 inside the script).
+          HOME="$iso" XDG_CONFIG_HOME="$iso/.config" bash .github/scripts/probe-auth.sh expect-unauthenticated
+          bash .github/scripts/probe-auth.sh expect-unauthenticated
           rm -rf "$iso"
-          echo "Credential removed and verified: authenticated reads fail from both homes."
+          echo "Credential removed and verified: the control succeeded earlier; the same read now fails as unauthenticated from both homes."
 
       # Not success(): a failed smoke test or sweep must not suppress the drift PR. Only the secret scan and the verified credential removal gate it.
       - name: "Open a PR when fixtures drifted"
@@ -190,7 +203,7 @@ jobs:
             Tokens, names, timestamps and ids are normalised on capture and scanned for secrets before this PR, so a diff here is a real change.
 
       - name: "Open an issue when the nightly fails"
-        if: always() && steps.gate.outputs.enabled == 'true' && (steps.smoke.outcome == 'failure' || steps.capture.outcome == 'failure' || steps.schemas.outcome == 'failure' || steps.scan.outcome == 'failure' || steps.sweep.outcome == 'failure' || steps.logout.outcome == 'failure')
+        if: always() && steps.gate.outputs.enabled == 'true' && (steps.smoke.outcome == 'failure' || steps.capture.outcome == 'failure' || steps.schemas.outcome == 'failure' || steps.scan.outcome == 'failure' || steps.sweep.outcome == 'failure' || steps.control.outcome == 'failure' || steps.logout.outcome == 'failure')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

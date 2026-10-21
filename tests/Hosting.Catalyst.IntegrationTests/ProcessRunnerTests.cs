@@ -93,7 +93,7 @@ public class ProcessRunnerTests
         await Run(["component", "create", "c", "--metadata", "connectionString=Host=x; Port=5432", "say \"hi\""]);
 
         Assert.Equal(
-            ["component", "create", "c", "--metadata", "connectionString=Host=x; Port=5432", "say \"hi\"", "--no-color"],
+            ["component", "create", "c", "--metadata", "connectionString=Host=x; Port=5432", "say \"hi\"", "--no-color=true"],
             fake.Invocations.Single());
     }
 
@@ -105,6 +105,6 @@ public class ProcessRunnerTests
 
         await Run(["project", "get", "demo"]);
 
-        Assert.Contains("--no-color", fake.Invocations.Single());
+        Assert.Contains("--no-color=true", fake.Invocations.Single());
     }
 }

@@ -107,7 +107,7 @@ public class IdempotencyTests
         // project create names the project positionally; no other provisioning call may rely on a current
         // project having been selected with `project use` (this driver never calls Init or UseProject).
         Assert.All(fake.Invocations.Where(i => i[0] != "project"), i => Assert.Contains("--project", i));
-        Assert.All(fake.Invocations, i => Assert.Equal("--no-color", i[^1]));
+        Assert.All(fake.Invocations, i => Assert.Equal("--no-color=true", i[^1]));
     }
 
     [Fact(Timeout = 60_000)]

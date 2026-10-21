@@ -143,7 +143,7 @@ public class CommandArgumentTests
 
     [Fact]
     public void No_builder_includes_no_color_because_the_runner_appends_it()
-        => Assert.DoesNotContain(AllBuilderOutputs(), b => b.Args.Contains("--no-color"));
+        => Assert.DoesNotContain(AllBuilderOutputs(), b => b.Args.Any(a => a.StartsWith("--no-color", StringComparison.Ordinal)));
 
     [Fact]
     public void Never_emits_the_hidden_appid_noun()

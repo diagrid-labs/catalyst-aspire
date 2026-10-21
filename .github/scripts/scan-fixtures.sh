@@ -28,7 +28,7 @@ set -euo pipefail
 # printed the notice on stdout and failed closed: correct where tested, broken on ubuntu-latest.)
 g() {
   local rc=0 out
-  out=$(grep -a "$@") || rc=$?
+  out=$(LC_ALL=C grep -a "$@") || rc=$?
   if [ "$rc" -gt 1 ]; then
     echo "::error::grep failed (rc=$rc); refusing to treat an error as 'no match'" >&2
     return "$rc"

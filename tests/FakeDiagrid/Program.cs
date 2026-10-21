@@ -14,6 +14,14 @@ if (!string.IsNullOrEmpty(childSleep))
     return 0;
 }
 
+// The real CLI registers --no-color as a flag that takes a VALUE, so a bare --no-color is a usage error. The fake
+// used to accept it, which let every test pass while production would have failed on every call. Mirror the CLI.
+if (args.Contains("--no-color"))
+{
+    Console.Error.WriteLine("Error: flag needs an argument: --no-color");
+    return 1;
+}
+
 var recordPath = Environment.GetEnvironmentVariable("FAKE_DIAGRID_RECORD");
 if (!string.IsNullOrEmpty(recordPath))
 {

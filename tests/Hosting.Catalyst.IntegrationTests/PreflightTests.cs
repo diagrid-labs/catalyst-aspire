@@ -154,7 +154,7 @@ public class PreflightTests
         Assert.Contains($"needs {CatalystCli.MinimumVersion} or newer", ex.Message, StringComparison.Ordinal);
         Assert.Contains("--ignore-if-exists", ex.Message, StringComparison.Ordinal);
         // A too-old CLI is refused before anything else is asked of it.
-        Assert.Equal([["version", "--no-color"]], fake.Invocations);
+        Assert.Equal([["version", "--no-color=true"]], fake.Invocations);
     }
 
     [Fact(Timeout = 30_000)]
@@ -178,7 +178,7 @@ public class PreflightTests
         await new CliCatalystProvisioner().Init(new CapturingLogger(), default);
 
         Assert.Equal(
-            [["version", "--no-color"], ["whoami", "--no-color"], ["product", "use", "catalyst", "--no-color"]],
+            [["version", "--no-color=true"], ["whoami", "--no-color=true"], ["product", "use", "catalyst", "--no-color=true"]],
             fake.Invocations);
     }
 

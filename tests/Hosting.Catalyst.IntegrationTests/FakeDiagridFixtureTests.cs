@@ -30,11 +30,27 @@ public class FakeDiagridFixtureTests
         using var fake = new FakeDiagridFixture();
         Assert.NotEmpty(Directory.EnumerateFiles(fake.BinDirectory, "diagrid*"));
 
-        var result = await fake.RunAsync("who-am-i", "--no-color");
+        var result = await fake.RunAsync("who-am-i", "--no-color=true");
 
         Assert.Equal(127, result.ExitCode);
-        Assert.Contains("FakeDiagrid: no scenario response matches argv: who-am-i --no-color", result.StdErr);
-        Assert.Equal(["who-am-i", "--no-color"], fake.Invocations.Single());
+        Assert.Contains("FakeDiagrid: no scenario response matches argv: who-am-i --no-color=true", result.StdErr);
+        Assert.Equal(["who-am-i", "--no-color=true"], fake.Invocations.Single());
+    }
+
+    // The real CLI rejects a bare --no-color ("flag needs an argument"); the fake must too, or every test passes
+    // while production fails on every call. Mutation: drop the check in the fake, or revert ProcessRunner to the bare flag.
+    [Fact]
+    public async Task A_bare_no_color_flag_is_a_usage_error_like_the_real_cli()
+    {
+        using var fake = new FakeDiagridFixture();
+        fake.SetScenario(new Scenario { Responses = [new() { StdOut = "ok" }] });
+
+        var bare = await fake.RunAsync("version", "--no-color");
+        var valued = await fake.RunAsync("version", "--no-color=true");
+
+        Assert.Equal(1, bare.ExitCode);
+        Assert.Contains("flag needs an argument: --no-color", bare.StdErr);
+        Assert.Equal(0, valued.ExitCode);
     }
 
     [Fact]

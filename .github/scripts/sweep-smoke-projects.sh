@@ -10,7 +10,7 @@ max_age_seconds=10800
 list="$(mktemp)"
 trap 'rm -f "$list"' EXIT
 
-diagrid project list --output json --no-color > "$list" < /dev/null
+diagrid project list --output json --no-color=true > "$list" < /dev/null
 if ! jq -e . "$list" > /dev/null 2>&1; then
   echo "::error::'diagrid project list --output json' did not return JSON; nothing was swept."
   exit 1
@@ -39,7 +39,7 @@ for name in "${old[@]}"; do
   esac
   echo "Deleting leaked project $name"
   # </dev/null: the CLI must not read the rest of the loop's input.
-  if ! diagrid project delete "$name" --wait --yes --no-color < /dev/null; then
+  if ! diagrid project delete "$name" --wait --yes --no-color=true < /dev/null; then
     echo "::error::failed to delete $name"
     failures=1
   fi

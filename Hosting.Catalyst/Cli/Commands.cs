@@ -23,7 +23,7 @@ internal static class Commands
     internal static readonly TimeSpan CreateTimeout = TimeSpan.FromMinutes(15);
 
     // Argument builders are pure so unit tests can assert on them without a process. They never include
-    // --no-color: ProcessRunner appends it to every invocation.
+    // --no-color=true: ProcessRunner appends it to every invocation.
 
     internal static string[] BuildCreateSubscriptionArgs(string name, CreateSubscriptionOptions options)
     {

@@ -20,7 +20,7 @@ internal static class ProcessRunner
 
     /// <summary>
     /// Runs <c>diagrid</c> with <paramref name="arguments"/> (each passed as exactly one argv entry),
-    /// <c>--no-color</c> appended and <c>NO_COLOR=1</c> set. Stdin is redirected and closed immediately so a CLI
+    /// <c>--no-color=true</c> appended and <c>NO_COLOR=1</c> set. Stdin is redirected and closed immediately so a CLI
     /// that prompts sees EOF instead of waiting forever. Both output streams are drained while the process runs.
     /// </summary>
     public static async Task<CliResult> RunAsync(
@@ -46,7 +46,9 @@ internal static class ProcessRunner
             startInfo.ArgumentList.Add(argument);
         }
 
-        startInfo.ArgumentList.Add("--no-color");
+        // --no-color takes a VALUE in the real CLI: a bare flag fails with "flag needs an argument".
+        // =true also stays valid if the flag ever becomes a plain bool.
+        startInfo.ArgumentList.Add("--no-color=true");
         startInfo.Environment["NO_COLOR"] = "1";
 
         Process process;

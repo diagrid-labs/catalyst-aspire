@@ -30,7 +30,7 @@ public class ProjectCreateWiringTests
         Assert.Equal(
             ["project", "create", "demo", "--region", "aws-us-west", "--global-id-max-body-size", "8Mi",
              "--enable-workflow-history-signing=true", "--deploy-managed-pubsub=false", "--deploy-managed-kv=true",
-             "--enable-managed-workflow", "--wait", "--disable-app-tunnels", "--ignore-if-exists", "--no-color"],
+             "--enable-managed-workflow", "--wait", "--disable-app-tunnels", "--ignore-if-exists", "--no-color=true"],
             fake.Invocations.Single());
     }
 }
