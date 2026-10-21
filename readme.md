@@ -6,17 +6,15 @@ This integration allows you to seamlessly connect your locally running Aspire pr
 
 ## What changed in this release
 
-If you are upgrading an existing AppHost, read the first three items before you run it. They change behavior without any compile error, and the first two affect live data and message delivery.
+If you are upgrading an existing AppHost, read the first three items before you run it. They change behavior without any compile error, and the first two affect live data and message delivery. Separately, if your AppHost uses top-level statements (the default template) and calls `AddCatalystProject()` without a name, it now fails at startup; see [Startup failure without a project name](#startup-failure-without-a-project-name).
 
 ### Upgrade hazards
 
-1. **Duplicate topic delivery until you delete the old subscription.** Generated subscription names changed from `{app}-pubsub` to `{app}-pubsub-{topic}`. The old scheme crashed as soon as an app subscribed to a second topic, so this was necessary. The consequence for an existing project: the first run creates the new subscription and leaves the old `{app}-pubsub` one in place, so **the topic is delivered twice** to your app. This looks like a bug in your app, not an incomplete upgrade. The old name was `{app}-{pubsub-component-name}`, so it is `{app}-pubsub` only for the sample component. If you used `WithCatalystPubSub("orders")`, the old subscription is `{app}-orders`. Delete the old subscription once per project, app and topic:
+1. **Duplicate topic delivery until you delete the old subscription.** Generated subscription names changed from `{app}-pubsub` to `{app}-pubsub-{topic}`. The old scheme crashed as soon as an app subscribed to a second topic, so this was necessary. The consequence for an existing project: the first run creates the new subscription and leaves the old `{app}-pubsub` one in place, so **the topic is delivered twice** to your app. This looks like a bug in your app, not an incomplete upgrade. Delete the old subscription once per project and app:
 
    ```bash
-   # app "checkout" on the sample "pubsub" component:
+   # for an app named "checkout":
    diagrid subscription delete checkout-pubsub --project your-project
-   # app "checkout" on WithCatalystPubSub("orders"):
-   diagrid subscription delete checkout-orders --project your-project
    ```
 
    You can also delete it in the Catalyst portal. Subscriptions you named yourself through `WithSubscription(name, ...)` are not affected.
@@ -60,7 +58,7 @@ For create-only resources, a change you make in the AppHost is **ignored** if th
 - **Bulk subscriptions.** The longer `WithSubscription(name, component, topic, route, bulk, bulkMaxMessagesCount, bulkMaxAwaitDuration)` overload sets the bulk options. Pass `null` to use the Catalyst default.
 - **The dashboard link follows `DIAGRID_URL`.** It used to be hardcoded to `catalyst.r1.diagrid.io`. It is now derived from the same `DIAGRID_URL` variable and rules as the Diagrid CLI, so for the default API URL it points at `catalyst.diagrid.io`.
 - **The `diagrid dev run` proxy starts in the AppHost's directory** instead of `.`.
-- **The Diagrid CLI is checked up front.** Provisioning now fails if the installed `diagrid` is older than 1.85.0, the first version with every command and flag used here.
+- **The Diagrid CLI is checked up front.** Provisioning checks the installed `diagrid` version and fails if it is older than 1.85.0, the oldest version this integration was verified against. If the version cannot be read, the check is skipped with a warning instead.
 - **Resource names are validated.** A resource name that is not a valid Catalyst name is rejected, as is one whose derived `{name}-catalyst-proxy` resource would exceed Aspire's 64-character limit (so names over 49 characters). Resources with no HTTP endpoint, such as workflow-only workers, are now supported.
 - **Duplicate subscriptions are rejected.** Declaring the same app, component and topic under two subscription names now throws, because it would deliver the topic twice. Reusing one subscription name for a different app, component or topic is rejected too.
 - **A component that collides with a managed store is detected.** If a component already exists under the store's name, the CLI's create can succeed without creating a store. Provisioning now notices and fails, naming the component, instead of carrying on.
@@ -91,9 +89,12 @@ With `EnableManagedWorkflow` also on, two flagged stores are then in scope, so c
 
 In the `AppHost` demo, the OSS side of the `USE_CATALYST` switch keeps workflow state and order state in one **in-memory** store. Workflows are **not durable across a sidecar restart there**. The crash-and-resume demonstration only works on the Catalyst side.
 
+### Startup failure without a project name
+
+`AddCatalystProject()` with no name now throws for AppHosts that use top-level statements, which is the default Aspire template. Their entry point is `Program` in the global namespace, so there is no namespace to derive a name from. This used to fall back silently to a project called `aspire`, which meant every such AppHost shared one project name in Catalyst. Pass a name: `AddCatalystProject("my-project")`. The exception names the `customProjectName` parameter.
+
 ### Breaking API changes
 
-- **`AddCatalystProject()` with no name now throws for AppHosts that use top-level statements, which is the default Aspire template.** Their entry point is `Program` in the global namespace, so there is no namespace to derive a name from. This used to fall back silently to a project called `aspire`, which meant every such AppHost shared one project name in Catalyst. Pass a name: `AddCatalystProject("my-project")`. The exception names the `customProjectName` parameter.
 `CatalystProvisioner` is the swappable abstraction behind the CLI calls, and it changed in several places. If you implement or subclass it, you are affected:
 
 - `CreateApp` and `GetAppDetails` gained a `projectName` parameter.
