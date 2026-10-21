@@ -112,9 +112,24 @@ public class AppHostShapeTests
 
         Assert.Contains("const string StateStore = \"statestore\";", source, StringComparison.Ordinal);
         Assert.Contains("const string PubSub = \"pubsub\";", source, StringComparison.Ordinal);
-        Assert.Contains($"MapPost(\"{subscription.Route}\"", source, StringComparison.Ordinal);
+        Assert.Contains($"MapPost(\"{subscription.Route}\", ", source, StringComparison.Ordinal);
         Assert.Equal("orders", subscription.Topic);
         Assert.Contains("const string Topic = \"orders\";", source, StringComparison.Ordinal);
+
+        // The literals appear only in the constant declarations, so every call must go through the constants.
+        // Mutation: PublishEventAsync("pubsub2", ...) or SaveStateAsync("statestore2", ...) with a literal.
+        foreach (var literal in new[] { "\"statestore\"", "\"pubsub\"", "\"orders\"" })
+            Assert.Equal(1, Regex.Matches(source, Regex.Escape(literal), RegexOptions.CultureInvariant).Count);
+        // Positive pins that the constants are actually used (a literal-free call that ignores them still fails).
+        Assert.Contains("PublishEventAsync(PubSub, Topic, ", source, StringComparison.Ordinal);
+        Assert.Contains("SaveStateAsync(StateStore, ", source, StringComparison.Ordinal);
+        Assert.Contains("GetStateAsync<Order?>(StateStore, ", source, StringComparison.Ordinal);
+        Assert.Contains(".WithTopic(PubSub, Topic)", source, StringComparison.Ordinal);
+
+        // The pitch: service code is identical on both sides, so it never looks at the switch or at Catalyst.
+        // Mutation: add a USE_CATALYST / Configuration branch or a Catalyst reference to TestApi.
+        Assert.DoesNotContain("USE_CATALYST", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("Catalyst", source, StringComparison.Ordinal);
     }
 
     // Workflows are durable through the managed workflows-state component; a second flagged store would make

@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 
-// Component names are the contract with the AppHost: Dapr OSS and Catalyst both expose "statestore" and "pubsub".
+// Component names are the contract with the AppHost: both hosting modes expose these two components.
 const string StateStore = "statestore";
 const string PubSub = "pubsub";
 const string Topic = "orders";
@@ -37,7 +37,7 @@ app.MapPost("/orders", async (Order order, DaprClient dapr) =>
     return Results.Accepted();
 });
 
-// Subscriber route. On Catalyst the AppHost declares the subscription; on Dapr OSS /dapr/subscribe serves it.
+// Subscriber route. The AppHost declares the subscription in one mode; /dapr/subscribe serves it in the other.
 app.MapPost("/orders/received", async (Order order, DaprClient dapr) =>
 {
     await dapr.SaveStateAsync(StateStore, order.Id, order);
