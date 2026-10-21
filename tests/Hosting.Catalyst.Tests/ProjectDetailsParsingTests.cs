@@ -36,6 +36,8 @@ public class ProjectDetailsParsingTests
     [InlineData("""{"metadata":{},"spec":{},"status":{"endpoints":{"http":{"url":"https://h.example/v1/p","port":443}}}}""")]
     [InlineData("""{"metadata":{},"spec":{},"status":{"endpoints":{"grpc":{"url":"https://g.example:443/p","port":443}}}}""")]
     [InlineData("""{"metadata":{},"spec":{},"status":{"endpoints":{"grpc":{"port":443},"http":{"port":443}}}}""")]
+    [InlineData("""{"metadata":{},"spec":{},"status":{"endpoints":{"grpc":{"url":"https://g.example:7443/p","port":7443},"http":{"url":"","port":443}}}}""")]
+    [InlineData("""{"metadata":{},"spec":{},"status":{"endpoints":{"grpc":{"url":"","port":7443},"http":{"url":"https://h.example/v1/p","port":443}}}}""")]
     public void Any_missing_part_of_the_endpoints_means_not_ready(string json)
         => Assert.Null(CliProjectDetails.Parse(json).ToProjectDetails());
 }

@@ -28,13 +28,13 @@ public record CliProjectDetails
 
     /// <summary>
     ///     The project's endpoints, or null while the project is still coming up (the CLI omits them until then).
-    ///     Both endpoints must be present: a half-populated project is not ready.
+    ///     Both endpoints must be present and absolute (an empty "url" parses to a relative Uri): a half-populated project is not ready.
     /// </summary>
     public ProjectDetails? ToProjectDetails()
     {
         var endpoints = Status?.Endpoints;
 
-        if (endpoints?.Http?.Uri is not { } http || endpoints.Grpc?.Uri is not { } grpc)
+        if (endpoints?.Http?.Uri is not { IsAbsoluteUri: true } http || endpoints.Grpc?.Uri is not { IsAbsoluteUri: true } grpc)
         {
             return null;
         }

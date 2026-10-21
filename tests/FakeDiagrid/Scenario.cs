@@ -19,7 +19,11 @@ public record ScenarioResponse
     /// <summary>
     /// When above zero, this response applies only to the first N invocations whose argv contains
     /// <see cref="ArgsMatch"/> (counted from the invocation record, this call included); later ones fall through
-    /// to the next response. Lets a scenario say "pending once, then ready". Needs FAKE_DIAGRID_RECORD.
+    /// to the next response. Lets a scenario say "pending once, then ready". Needs FAKE_DIAGRID_RECORD (the fake
+    /// fails loudly if it is unset).
+    /// Limits: the count is by <see cref="ArgsMatch"/> substring across ALL log lines, not per response, so two
+    /// Times-limited responses sharing an ArgsMatch misbehave ([A times 1, B times 1]: B never applies). And
+    /// "first N" is by log order, so it is nondeterministic under concurrent invocations; use it sequentially.
     /// </summary>
     public int Times { get; init; }
     public int StdOutRepeat { get; init; } = 1;

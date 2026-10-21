@@ -73,6 +73,26 @@ public class ReadinessTests
         Assert.True(ProjectGets(fake) >= 2, "it should have polled more than once before giving up");
     }
 
+    [Fact(Timeout = 30_000)]
+    public async Task A_Times_scenario_without_a_record_file_fails_loudly_instead_of_never_expiring()
+    {
+        using var fake = new FakeDiagridFixture();
+        fake.SetScenario(new Scenario { Responses = [ProjectGetPending(times: 1), ProjectGetReady()] });
+        var psi = new ProcessStartInfo("diagrid") { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
+        psi.ArgumentList.Add("project");
+        psi.ArgumentList.Add("get");
+        fake.Configure(psi);
+        psi.Environment.Remove("FAKE_DIAGRID_RECORD");
+
+        using var process = Process.Start(psi)!;
+        var stderr = process.StandardError.ReadToEndAsync();
+        _ = process.StandardOutput.ReadToEndAsync();
+        await process.WaitForExitAsync();
+
+        Assert.NotEqual(0, process.ExitCode);
+        Assert.Contains("FAKE_DIAGRID_RECORD", await stderr, StringComparison.Ordinal);
+    }
+
     // Review Focus #4: Ctrl-C mid-provision.
     [Fact(Timeout = 30_000)]
     public async Task Cancellation_during_the_wait_stops_promptly()
@@ -126,6 +146,8 @@ public class ReadinessTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => provisioning);
 
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(10), $"took {stopwatch.Elapsed}");
+        // The recorder is fed asynchronously: let any late publish arrive before asserting on absence.
+        await states.Drain();
         var seen = states.Snapshot();
         Assert.DoesNotContain(KnownResourceStates.Running, seen);
         Assert.DoesNotContain(KnownResourceStates.Active, seen);
@@ -175,6 +197,20 @@ public class ReadinessTests
         public IReadOnlyList<string> Snapshot()
         {
             lock (_states) return _states.ToList();
+        }
+
+        /// <summary>Waits until no new state has arrived for a quiet period (bounded), so absence checks are not vacuous.</summary>
+        public async Task Drain()
+        {
+            var deadline = Stopwatch.StartNew();
+            var count = Snapshot().Count;
+            var quiet = Stopwatch.StartNew();
+            while (quiet.Elapsed < TimeSpan.FromMilliseconds(500) && deadline.Elapsed < TimeSpan.FromSeconds(5))
+            {
+                await Task.Delay(25);
+                var now = Snapshot().Count;
+                if (now != count) { count = now; quiet.Restart(); }
+            }
         }
 
         public async Task WaitFor(string state, TimeSpan timeout)

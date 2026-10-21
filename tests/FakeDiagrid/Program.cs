@@ -42,9 +42,37 @@ var scenario = !string.IsNullOrEmpty(scenarioPath) && File.Exists(scenarioPath)
 var joined = string.Join(' ', args);
 
 // Invocation log lines (this call is already appended), for ScenarioResponse.Times.
-var recorded = !string.IsNullOrEmpty(recordPath) && File.Exists(recordPath)
-    ? File.ReadAllLines(recordPath).Where(l => l.Length > 0).Select(l => string.Join(' ', JsonSerializer.Deserialize<string[]>(l)!)).ToList()
-    : [joined];
+// Read only when a response needs it: other fakes hold the file open for append, so every read must share
+// with writers (FileShare.ReadWrite) and retry, exactly as the writer above does.
+List<string> ReadRecorded()
+{
+    if (string.IsNullOrEmpty(recordPath))
+    {
+        throw new InvalidOperationException("FakeDiagrid: a scenario response uses Times but FAKE_DIAGRID_RECORD is not set.");
+    }
+
+    for (var attempt = 0; ; attempt++)
+    {
+        try
+        {
+            using var fs = new FileStream(recordPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(fs);
+            var lines = new List<string>();
+            string? line;
+            while ((line = reader.ReadLine()) is not null)
+            {
+                if (line.Length > 0) lines.Add(string.Join(' ', JsonSerializer.Deserialize<string[]>(line)!));
+            }
+            return lines;
+        }
+        catch (IOException) when (attempt < 500)
+        {
+            Thread.Sleep(20);
+        }
+    }
+}
+
+var recorded = scenario.Responses.Any(r => r.Times > 0) ? ReadRecorded() : [];
 
 bool Applies(ScenarioResponse r) =>
     (r.ArgsMatch is null || joined.Contains(r.ArgsMatch, StringComparison.Ordinal))
