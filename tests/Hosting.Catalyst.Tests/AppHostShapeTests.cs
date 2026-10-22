@@ -68,7 +68,7 @@ public class AppHostShapeTests
     public void The_USE_CATALYST_setting_selects_the_side(string value, bool expectCatalyst)
     {
         var builder = DistributedApplication.CreateBuilder([$"USE_CATALYST={value}"]);
-        DemoWiring.Configure<FakeApi>(builder, DemoWiring.UseCatalystAsync(builder));
+        DemoWiring.Configure<FakeApi>(builder, DemoWiring.UseCatalyst(builder));
 
         Assert.Equal(expectCatalyst, builder.Resources.Any(r => r is CatalystProject));
     }

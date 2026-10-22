@@ -42,7 +42,7 @@ public class SmokeTests
         {
             // The USE_CATALYST=true AppHost wiring (test-api app, statestore, pubsub, subscription), plus an agent.
             var builder = DistributedApplication.CreateBuilder(["USE_CATALYST=true"]);
-            DemoWiring.Configure<FakeApi>(builder, DemoWiring.UseCatalystAsync(builder), name);
+            DemoWiring.Configure<FakeApi>(builder, DemoWiring.UseCatalyst(builder), name);
             var catalyst = builder.Resources.OfType<CatalystProject>().Single();
             Assert.Equal(name, catalyst.ProjectName);
             builder.AddExecutable("my-agent", "dotnet", ".").WithCatalystAgent();

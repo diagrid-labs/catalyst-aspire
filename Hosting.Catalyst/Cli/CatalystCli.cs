@@ -87,7 +87,7 @@ internal static class CatalystCli
     /// message, so an unrecognised output format must not become an outage. A real capability gap still surfaces at the
     /// first create, as the CLI's own "unknown flag" error.
     /// </summary>
-    internal static bool EnsureSupportedVersionAsync(IReadOnlyList<string> arguments, string stdOut)
+    internal static bool EnsureSupportedVersion(IReadOnlyList<string> arguments, string stdOut)
     {
         var version = ParseVersion(stdOut, out var text);
         if (version is null)

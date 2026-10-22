@@ -205,7 +205,7 @@ internal static class Commands
             return;
         }
 
-        if (!CatalystCli.EnsureSupportedVersionAsync(arguments, result.StdOut))
+        if (!CatalystCli.EnsureSupportedVersion(arguments, result.StdOut))
         {
             logger.LogWarning("{Message}", CatalystCli.UnreadableVersionWarning("'diagrid version' printed no recognisable 'Version:' line"));
         }

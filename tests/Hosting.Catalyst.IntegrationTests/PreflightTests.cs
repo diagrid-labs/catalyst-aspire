@@ -43,7 +43,7 @@ public class PreflightTests
     [InlineData("2.0.0")]
     public void Versions_at_or_above_the_floor_pass(string version)
         // True, not merely "did not throw": an unreadable version also does not throw, but returns false.
-        => Assert.True(CatalystCli.EnsureSupportedVersionAsync(["version"], VersionOutput(version)));
+        => Assert.True(CatalystCli.EnsureSupportedVersion(["version"], VersionOutput(version)));
 
     [Theory]
     [InlineData("1.84.9")]
@@ -52,7 +52,7 @@ public class PreflightTests
     [InlineData("1.9.0")] // numeric, not lexical: 1.9 < 1.85
     public void Versions_below_the_floor_are_refused_naming_the_found_and_required_versions_and_the_capability(string version)
     {
-        var ex = Assert.Throws<CatalystCliException>(() => CatalystCli.EnsureSupportedVersionAsync(["version"], VersionOutput(version)));
+        var ex = Assert.Throws<CatalystCliException>(() => CatalystCli.EnsureSupportedVersion(["version"], VersionOutput(version)));
 
         // The phrases, not bare substrings: swapping found and required would still contain both numbers.
         Assert.Contains($"is version {version},", ex.Message, StringComparison.Ordinal);
@@ -70,7 +70,7 @@ public class PreflightTests
     [InlineData("Version: banana\n")]
     [InlineData("API server version: 1.181.0\n")] // only a differently-keyed line
     public void Output_without_a_readable_Version_line_reports_unreadable_instead_of_throwing(string stdOut)
-        => Assert.False(CatalystCli.EnsureSupportedVersionAsync(["version"], stdOut));
+        => Assert.False(CatalystCli.EnsureSupportedVersion(["version"], stdOut));
 
     [Fact(Timeout = 30_000)]
     public async Task An_unparseable_version_warns_and_proceeds()

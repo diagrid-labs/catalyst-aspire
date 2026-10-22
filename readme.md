@@ -6,7 +6,7 @@ This integration allows you to seamlessly connect your locally running Aspire pr
 
 ## What changed in this release
 
-If you are upgrading an existing AppHost, read the first three items before you run it. They change behavior without any compile error, and the first two affect live data and message delivery. Separately, if your AppHost uses top-level statements (the default template) and calls `AddCatalystProject()` without a name, it now fails at startup; see [Startup failure without a project name](#startup-failure-without-a-project-name).
+If you are upgrading an existing AppHost, read both items below before you run it. They change behavior without any compile error, and the first affects live message delivery. Separately, if your AppHost uses top-level statements (the default template) and calls `AddCatalystProject()` without a name, it now fails at startup; see [Startup failure without a project name](#startup-failure-without-a-project-name).
 
 ### Upgrade hazards
 
@@ -19,9 +19,7 @@ If you are upgrading an existing AppHost, read the first three items before you 
 
    You can also delete it in the Catalyst portal. Subscriptions you named yourself through `WithSubscription(name, ...)` are not affected.
 
-2. **`WithCatalystKvStore()` now creates `statestore`, not `kvstore`, and the old store is orphaned.** The default name changed so that Dapr OSS samples (which use `statestore`) work through the `USE_CATALYST` switch without editing service code. An existing AppHost creates a **new, empty** `statestore` on first run. The old `kvstore` and its data are left behind, not migrated and not read. The same applies to code: any service that addresses the store as `kvstore` by name now points at the empty store unless you pin the old name. To keep using your data, pin it explicitly: `WithCatalystKvStore("kvstore")`.
-
-3. **Scopes and metadata are reset on every run.** Components and subscriptions now reconcile: each run compares the AppHost's declaration with Catalyst and updates the resource when they differ, resending the declared values wholesale. The AppHost is the source of truth. Scopes or metadata that you set in the portal or with the CLI are **overwritten** on the next run. Put them in the AppHost.
+2. **Scopes and metadata are reset on every run.** Components and subscriptions now reconcile: each run compares the AppHost's declaration with Catalyst and updates the resource when they differ, resending the declared values wholesale. The AppHost is the source of truth. Scopes or metadata that you set in the portal or with the CLI are **overwritten** on the next run. Put them in the AppHost.
 
 ### What reconciles and what does not
 
@@ -116,7 +114,7 @@ A find-and-replace of `CatalystProvisioner` → `ICatalystProvisioner` plus the 
 - `CliAppDetails` and five CLI output DTOs were removed.
 - The `ResolveApiToken` signature changed.
 - `IgnoreIfExists` now defaults to `true` on four options records.
-- The **value** of the `SampleKvName` constant changed to `statestore`. C# inlines constant values at compile time, so anything compiled against the old package keeps using `kvstore` until you **recompile** it.
+- `SampleKvName` is unchanged: `WithCatalystKvStore()` with no name still creates `kvstore`. Expect to pass a name instead — the store has to match the Dapr state store component your services already address, so moving off Dapr OSS usually means `WithCatalystKvStore("statestore")` or whatever yours is called. The demo AppHost does this, and it is the one line the switch costs.
 - Errors raised by the `WithCatalyst*` builder methods are now `InvalidOperationException` rather than bare `System.Exception`, so you can catch them selectively. A `catch (Exception)` still works.
 
 ## Getting Started

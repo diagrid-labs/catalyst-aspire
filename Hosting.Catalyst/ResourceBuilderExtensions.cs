@@ -15,7 +15,13 @@ namespace Diagrid.Aspire.Hosting.Catalyst;
 
 public static class ResourceBuilderExtensions
 {
-    public const string SampleKvName = "statestore";
+    /// <summary>
+    ///     The name <see cref="WithCatalystKvStore(IResourceBuilder{CatalystProject})"/> gives the store it creates.
+    ///     It is <c>kvstore</c> because that is what the resource is in Catalyst. Expect to override it: the name has
+    ///     to match the Dapr state store component your services already address, so pass your own with
+    ///     <c>WithCatalystKvStore("your-name")</c>. The demo AppHost does exactly that.
+    /// </summary>
+    public const string SampleKvName = "kvstore";
     public const string SamplePubsubName = "pubsub";
 
     /// <summary>

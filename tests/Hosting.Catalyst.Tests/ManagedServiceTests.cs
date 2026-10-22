@@ -14,10 +14,13 @@ public class ManagedServiceTests
         return configure(builder.AddCatalystProject("demo")).Resource;
     }
 
-    // Mutation: put the default back to "kvstore" and a Dapr OSS app's `statestore` no longer resolves on Catalyst.
+    // The default is the Catalyst resource's own name. It is expected to be overridden, because the store has to
+    // match whatever Dapr state store component the services already address — see DemoWiring, which names it.
+    // Mutation: change the constant to "statestore" and the demo's explicit name silently becomes redundant,
+    // hiding the step a developer moving off Dapr OSS actually has to take.
     [Fact]
-    public void Default_kv_store_is_named_statestore()
-        => Assert.Equal("statestore", Diagrid.Aspire.Hosting.Catalyst.ResourceBuilderExtensions.SampleKvName);
+    public void Default_kv_store_is_named_kvstore()
+        => Assert.Equal("kvstore", Diagrid.Aspire.Hosting.Catalyst.ResourceBuilderExtensions.SampleKvName);
 
     [Fact]
     public void Default_pubsub_is_unchanged_and_differs_from_the_kv_name()
@@ -33,7 +36,7 @@ public class ManagedServiceTests
     {
         var p = Build(b => b.WithCatalystKvStore());
 
-        Assert.True(p.KvStores.ContainsKey("statestore"));
+        Assert.True(p.KvStores.ContainsKey("kvstore"));
         Assert.Empty(p.PubSubs);
         Assert.Empty(p.Components);
     }
@@ -55,7 +58,7 @@ public class ManagedServiceTests
     {
         var p = Build(b => b.WithCatalystKvStore().WithCatalystPubSub());
 
-        Assert.True(p.KvStores.ContainsKey("statestore"));
+        Assert.True(p.KvStores.ContainsKey("kvstore"));
         Assert.True(p.PubSubs.ContainsKey("pubsub"));
         Assert.DoesNotContain(p.Components.Values, c => c.Metadata.ContainsKey("actorStateStore"));
     }
