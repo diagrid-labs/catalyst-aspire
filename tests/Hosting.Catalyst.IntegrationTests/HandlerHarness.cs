@@ -61,7 +61,7 @@ internal static class HandlerHarness
     }
 
     /// <summary>Records every state text published for the resource, via the real notification surface.</summary>
-    internal sealed class StateRecorder
+    internal sealed class StateRecorder : IDisposable
     {
         private readonly List<string> _states = [];
         private readonly CancellationTokenSource _stop = new();
@@ -76,7 +76,10 @@ internal static class HandlerHarness
                     {
                         if (e.Snapshot.State?.Text is { } text)
                         {
-                            lock (_states) _states.Add(text);
+                            lock (_states)
+                            {
+                                _states.Add(text);
+                            }
                         }
                     }
                 }
@@ -86,7 +89,17 @@ internal static class HandlerHarness
 
         public IReadOnlyList<string> Snapshot()
         {
-            lock (_states) return _states.ToList();
+            lock (_states)
+            {
+                return _states.ToList();
+            }
+        }
+
+        /// <summary>Stops the watch loop and releases its token source.</summary>
+        public void Dispose()
+        {
+            _stop.Cancel();
+            _stop.Dispose();
         }
 
         /// <summary>Waits until no new state has arrived for a quiet period (bounded), so absence checks are not vacuous.</summary>
@@ -108,7 +121,11 @@ internal static class HandlerHarness
             var deadline = Stopwatch.StartNew();
             while (!Snapshot().Contains(state))
             {
-                if (deadline.Elapsed > timeout) throw new TimeoutException($"never saw state '{state}'; saw: {string.Join(", ", Snapshot())}");
+                if (deadline.Elapsed > timeout)
+                {
+                    throw new TimeoutException($"never saw state '{state}'; saw: {string.Join(", ", Snapshot())}");
+                }
+
                 await Task.Delay(25);
             }
         }

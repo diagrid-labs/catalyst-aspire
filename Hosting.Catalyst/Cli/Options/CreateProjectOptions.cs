@@ -10,11 +10,11 @@ public record CreateProjectOptions
 
     public bool? EnableWorkflowHistorySigning { get; init; }
 
-    public bool DeployManagedPubsub { get; init; } = false;
+    public bool DeployManagedPubsub { get; init; }
 
-    public bool DeployManagedKv { get; init; } = false;
+    public bool DeployManagedKv { get; init; }
 
-    public bool EnableManagedWorkflow { get; init; } = false;
+    public bool EnableManagedWorkflow { get; init; }
 
     public bool Wait { get; init; } = true;
     public bool IgnoreIfExists { get; init; } = true;

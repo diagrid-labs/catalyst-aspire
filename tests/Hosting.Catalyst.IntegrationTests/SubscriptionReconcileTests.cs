@@ -6,7 +6,7 @@ using FakeDiagrid;
 namespace Hosting.Catalyst.IntegrationTests;
 
 // Every test builds a FakeDiagridFixture before spawning: a bare "diagrid" must never reach the real CLI.
-// These drive CatalystLifecycleHandler.ProvisionCatalyst over subscriptions declared through the real fluent API,
+// These drive CatalystLifecycleHandler.ProvisionCatalystAsync over subscriptions declared through the real fluent API,
 // so they pin that production calls the reconcile (not just that a helper works).
 [Collection(FakeDiagridCollection.Name)]
 public class SubscriptionReconcileTests
@@ -43,7 +43,7 @@ public class SubscriptionReconcileTests
         fake.SetScenario(Scenario());
         var (_, handler, _, _) = HandlerHarness.BuildWithLogs(Declared(b => b.WithSubscription("orders", "/orders")));
 
-        await handler.ProvisionCatalyst(default);
+        await handler.ProvisionCatalystAsync(default);
 
         var probe = fake.Invocations.ToList().FindIndex(i => i is ["subscription", "get", "test-api-pubsub-orders", ..]);
         var update = fake.Invocations.ToList().FindIndex(i => i is ["subscription", "update", "test-api-pubsub-orders", ..]);
@@ -60,7 +60,7 @@ public class SubscriptionReconcileTests
         fake.SetScenario(Scenario([new() { ArgsMatch = "subscription get", ExitCode = 1, StdErr = "Error: not found" }]));
         var (_, handler, _, _) = HandlerHarness.BuildWithLogs(Declared(b => b.WithSubscription("orders", "/orders")));
 
-        await handler.ProvisionCatalyst(default);
+        await handler.ProvisionCatalystAsync(default);
 
         var probe = fake.Invocations.ToList().FindIndex(i => i is ["subscription", "get", ..]);
         var create = fake.Invocations.ToList().FindIndex(i => i is ["subscription", "create", "test-api-pubsub-orders", ..]);
@@ -82,7 +82,7 @@ public class SubscriptionReconcileTests
         var (_, handler, _, _) = HandlerHarness.BuildWithLogs(
             Declared(b => b.WithSubscription("orders", "/orders-route").WithSubscription("shipments", "/shipments-route")));
 
-        await handler.ProvisionCatalyst(default);
+        await handler.ProvisionCatalystAsync(default);
 
         var update = Single(fake, i => i is ["subscription", "update", ..]);
         var create = Single(fake, i => i is ["subscription", "create", ..]);
@@ -102,7 +102,7 @@ public class SubscriptionReconcileTests
         var (_, handler, _, _) = HandlerHarness.BuildWithLogs(Declared(b =>
             b.WithSubscription("sub-1", "events", "orders", "/o", true, 25, TimeSpan.FromSeconds(90))));
 
-        await handler.ProvisionCatalyst(default);
+        await handler.ProvisionCatalystAsync(default);
 
         var update = Single(fake, i => i is ["subscription", "update", "sub-1", ..]);
         Assert.Equal("events", ValueAfter(update, "--component"));
@@ -123,7 +123,7 @@ public class SubscriptionReconcileTests
         var (_, handler, _, _) = HandlerHarness.BuildWithLogs(Declared(b =>
             b.WithSubscription("sub-1", "events", "orders", "/o", true, 25, TimeSpan.FromSeconds(2))));
 
-        await handler.ProvisionCatalyst(default);
+        await handler.ProvisionCatalystAsync(default);
 
         var create = Single(fake, i => i is ["subscription", "create", "sub-1", ..]);
         Assert.Contains("--bulk", create);
@@ -142,7 +142,7 @@ public class SubscriptionReconcileTests
             new() { ArgsMatch = "subscription create", ExitCode = 1, StdErr = "Error: network unreachable" }]));
         var (_, handler, states, _) = HandlerHarness.BuildWithLogs(Declared(b => b.WithSubscription("orders", "/orders")));
 
-        var ex = await Assert.ThrowsAsync<CatalystCliException>(() => handler.ProvisionCatalyst(default));
+        var ex = await Assert.ThrowsAsync<CatalystCliException>(() => handler.ProvisionCatalystAsync(default));
 
         Assert.Equal(["subscription", "create"], ex.Arguments.Take(2));
         await states.Drain();
@@ -156,7 +156,7 @@ public class SubscriptionReconcileTests
         fake.SetScenario(Scenario([new() { ArgsMatch = "subscription update", ExitCode = 1, StdErr = "Error: boom" }]));
         var (_, handler, states, _) = HandlerHarness.BuildWithLogs(Declared(b => b.WithSubscription("orders", "/orders")));
 
-        var ex = await Assert.ThrowsAsync<CatalystCliException>(() => handler.ProvisionCatalyst(default));
+        var ex = await Assert.ThrowsAsync<CatalystCliException>(() => handler.ProvisionCatalystAsync(default));
 
         Assert.Equal(["subscription", "update"], ex.Arguments.Take(2));
         await states.Drain();

@@ -6,7 +6,7 @@ using FakeDiagrid;
 namespace Hosting.Catalyst.IntegrationTests;
 
 // Every test builds a FakeDiagridFixture before spawning: a bare "diagrid" must never reach the real CLI.
-// These drive CatalystLifecycleHandler.ProvisionCatalyst over identities declared through the real fluent API,
+// These drive CatalystLifecycleHandler.ProvisionCatalystAsync over identities declared through the real fluent API,
 // so they pin that production dispatches on IdentityKind (not just that a helper works).
 [Collection(FakeDiagridCollection.Name)]
 public class AgentProvisioningTests
@@ -40,8 +40,15 @@ public class AgentProvisioningTests
     {
         var builder = DistributedApplication.CreateBuilder();
         var catalyst = builder.AddCatalystProject("demo");
-        if (agent) builder.AddExecutable(AgentName, "dotnet", ".").WithCatalystAgent();
-        if (app) builder.AddExecutable(AppName, "dotnet", ".").WithCatalystApp();
+        if (agent)
+        {
+            builder.AddExecutable(AgentName, "dotnet", ".").WithCatalystAgent();
+        }
+
+        if (app)
+        {
+            builder.AddExecutable(AppName, "dotnet", ".").WithCatalystApp();
+        }
 
         foreach (var pair in catalyst.Resource.Identities)
         {
@@ -52,7 +59,7 @@ public class AgentProvisioningTests
     private static string TokenOf(CatalystProject project, string name)
         => project.Identities.Single(i => i.Key.Name == name).Value.Details.Task.GetAwaiter().GetResult().ApiToken;
 
-    // Mutation: the handler always calls CreateApp -> 'agent create' is never seen and 'app create my-agent' is.
+    // Mutation: the handler always calls CreateAppAsync -> 'agent create' is never seen and 'app create my-agent' is.
     [Fact(Timeout = 60_000)]
     public async Task Creates_the_agent_with_the_agent_noun_and_the_app_with_the_app_noun()
     {
@@ -60,7 +67,7 @@ public class AgentProvisioningTests
         fake.SetScenario(Scenario(Fixture("agent-get.json")));
         var (_, handler, _, _) = HandlerHarness.BuildWithLogs(Declared(agent: true, app: true));
 
-        await handler.ProvisionCatalyst(default);
+        await handler.ProvisionCatalystAsync(default);
 
         var agentCreate = Assert.Single(fake.Invocations, i => i is ["agent", "create", ..]);
         Assert.Equal(AgentName, agentCreate[2]);
@@ -82,7 +89,7 @@ public class AgentProvisioningTests
         fake.SetScenario(Scenario(Fixture("agent-get.json")));
         var (project, handler, _, _) = HandlerHarness.BuildWithLogs(Declared(agent: true, app: true));
 
-        await handler.ProvisionCatalyst(default);
+        await handler.ProvisionCatalystAsync(default);
 
         Assert.DoesNotContain("\"apiToken\"", Fixture("agent-get.json").Split("\"appIds\"")[0], StringComparison.Ordinal);
         Assert.Equal(AgentToken, TokenOf(project, AgentName));
@@ -97,7 +104,7 @@ public class AgentProvisioningTests
         fake.SetScenario(Scenario(Fixture("agent-get-no-token.json")));
         var (_, handler, _, _) = HandlerHarness.BuildWithLogs(Declared());
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => handler.ProvisionCatalyst(default));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => handler.ProvisionCatalystAsync(default));
 
         Assert.Contains(AgentName, ex.Message, StringComparison.Ordinal);
         Assert.Contains("Agent API may be unavailable", ex.Message, StringComparison.Ordinal);
@@ -112,7 +119,7 @@ public class AgentProvisioningTests
             new ScenarioResponse { ArgsMatch = "agent create", ExitCode = 1, StdErr = "Error: 404 page not found" }));
         var (_, handler, states, _) = HandlerHarness.BuildWithLogs(Declared());
 
-        var ex = await Assert.ThrowsAsync<CatalystCliException>(() => handler.ProvisionCatalyst(default));
+        var ex = await Assert.ThrowsAsync<CatalystCliException>(() => handler.ProvisionCatalystAsync(default));
 
         Assert.Contains(AgentName, ex.Message, StringComparison.Ordinal);
         Assert.Contains("404", ex.Message, StringComparison.Ordinal);
@@ -129,7 +136,7 @@ public class AgentProvisioningTests
         fake.SetScenario(Scenario(Fixture("agent-get.json")));
         var (_, handler, states, _) = HandlerHarness.BuildWithLogs(Declared());
 
-        await handler.ProvisionCatalyst(default);
+        await handler.ProvisionCatalystAsync(default);
         await states.Drain();
 
         Assert.Contains("Ensuring identities", states.Snapshot());

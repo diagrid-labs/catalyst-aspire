@@ -20,7 +20,7 @@ public class CatalystProject : IResource
     ///     The label of the project in Catalyst. See Name for the label that will be used in Aspire.
     /// </summary>
     public required string ProjectName { get; init; }
-    
+
     internal TaskCompletionSource<string> HttpEndpoint { get; } = new();
     internal TaskCompletionSource<string> GrpcEndpoint { get; } = new();
     internal ProjectDescriptor ProjectDescriptor { get; init; } = new();

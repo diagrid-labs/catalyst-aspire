@@ -14,14 +14,25 @@ internal static partial class StdErrCleaner
     /// <summary>Strips CSI escape sequences and drops the CLI's unsolicited update-notice lines.</summary>
     public static string Clean(string stdErr)
     {
-        if (string.IsNullOrEmpty(stdErr)) return string.Empty;
+        if (string.IsNullOrEmpty(stdErr))
+        {
+            return string.Empty;
+        }
 
         var stripped = CsiSequence().Replace(stdErr, string.Empty);
         var kept = new StringBuilder();
         foreach (var line in stripped.Split('\n'))
         {
-            if (IsUpdateNotice(line)) continue;
-            if (kept.Length > 0) kept.Append('\n');
+            if (IsUpdateNotice(line))
+            {
+                continue;
+            }
+
+            if (kept.Length > 0)
+            {
+                kept.Append('\n');
+            }
+
             kept.Append(line.TrimEnd('\r'));
         }
 

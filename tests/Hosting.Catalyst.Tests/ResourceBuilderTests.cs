@@ -145,7 +145,9 @@ public class ResourceBuilderTests
         var context = new EnvironmentCallbackContext(executionContext, env);
 
         foreach (var annotation in worker.Resource.Annotations.OfType<EnvironmentCallbackAnnotation>())
+        {
             await annotation.Callback(context);
+        }
 
         Assert.Equal("https://grpc.example", env["DAPR_GRPC_ENDPOINT"]);
         Assert.Equal("https://http.example", env["DAPR_HTTP_ENDPOINT"]);
@@ -180,7 +182,9 @@ public class ResourceBuilderTests
         var args = new List<object>();
         var context = new CommandLineArgsCallbackContext(args, proxy);
         foreach (var annotation in proxy.Annotations.OfType<CommandLineArgsCallbackAnnotation>())
+        {
             annotation.Callback(context).GetAwaiter().GetResult();
+        }
 
         return args
             .Select(a => a is IManifestExpressionProvider m ? m.ValueExpression : a.ToString()!)
@@ -199,9 +203,14 @@ public class ResourceBuilderTests
         {
             lines.Add($"{resource.Name} [{string.Join(",", resource.Annotations.Select(a => a.GetType().Name).OrderBy(n => n, StringComparer.Ordinal))}]");
             if (resource is ExecutableResource exe && exe.Name.EndsWith("-catalyst-proxy", StringComparison.Ordinal))
+            {
                 lines.Add($"{exe.Name} args: {string.Join(" ", ArgsOf(exe))}");
+            }
+
             if (resource is CatalystProject p)
+            {
                 lines.Add($"identities: {string.Join(",", p.Identities.Select(i => $"{i.Key.Name}:{i.Value.Kind}"))}");
+            }
         }
         return lines;
     }

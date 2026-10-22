@@ -65,7 +65,7 @@ public class AgentTests
         builder.AddCatalystProject("one");
         builder.AddCatalystProject("two");
 
-        var ex = Assert.Throws<Exception>(() => builder.AddExecutable("my-agent", "dotnet", ".").WithCatalystAgent());
+        var ex = Assert.Throws<InvalidOperationException>(() => builder.AddExecutable("my-agent", "dotnet", ".").WithCatalystAgent());
         Assert.Contains("WithCatalystAgent", ex.Message, StringComparison.Ordinal);
     }
 
@@ -88,7 +88,9 @@ public class AgentTests
         var args = new List<object>();
         var context = new CommandLineArgsCallbackContext(args, proxy);
         foreach (var annotation in proxy.Annotations.OfType<CommandLineArgsCallbackAnnotation>())
+        {
             annotation.Callback(context).GetAwaiter().GetResult();
+        }
 
         return args.Select(a => a is IManifestExpressionProvider m ? m.ValueExpression : a.ToString()!).ToList();
     }

@@ -42,5 +42,5 @@ public static class DemoWiring
         return api;
     }
 
-    public static bool UseCatalyst(IDistributedApplicationBuilder builder) => builder.Configuration.GetValue<bool>("USE_CATALYST");
+    public static bool UseCatalystAsync(IDistributedApplicationBuilder builder) => builder.Configuration.GetValue<bool>("USE_CATALYST");
 }

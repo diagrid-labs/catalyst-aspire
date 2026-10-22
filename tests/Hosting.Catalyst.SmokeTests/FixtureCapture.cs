@@ -107,7 +107,10 @@ public partial class FixtureCapture
     private static string NormaliseString(string s, string[] names, string? key, bool inSecret)
     {
         // Anything nested under a secret-named key (arrays and objects included) is secret, whatever its own key says.
-        if (inSecret && (key is null || !SecretKey().IsMatch(key))) return Redacted;
+        if (inSecret && (key is null || !SecretKey().IsMatch(key)))
+        {
+            return Redacted;
+        }
 
         if (key is not null && SecretKey().IsMatch(key))
         {
@@ -119,10 +122,26 @@ public partial class FixtureCapture
                     : Redacted;
         }
 
-        if (s.Contains("diagrid://", StringComparison.Ordinal)) return MockApiToken; // a token anywhere in the string
-        if (Timestamp().IsMatch(s)) return NormalisedTimestamp;
-        if (Uuid().IsMatch(s)) return MockUuid;
-        foreach (var name in names) s = s.Replace(name, "demo", StringComparison.Ordinal);
+        if (s.Contains("diagrid://", StringComparison.Ordinal))
+        {
+            return MockApiToken; // a token anywhere in the string
+        }
+
+        if (Timestamp().IsMatch(s))
+        {
+            return NormalisedTimestamp;
+        }
+
+        if (Uuid().IsMatch(s))
+        {
+            return MockUuid;
+        }
+
+        foreach (var name in names)
+        {
+            s = s.Replace(name, "demo", StringComparison.Ordinal);
+        }
+
         s = Email().Replace(s, "user@example.com");
         return OpaqueId().Replace(s, Redacted);
     }
@@ -150,20 +169,42 @@ public partial class FixtureCapture
                         throw new InvalidOperationException($"{path}.{key}: secret-looking key holds a non-mock value");
                     }
 
-                    if (value is not null) AssertNoSecrets(value, names, $"{path}.{key}");
+                    if (value is not null)
+                    {
+                        AssertNoSecrets(value, names, $"{path}.{key}");
+                    }
                 }
                 break;
             case JsonArray array:
                 for (var i = 0; i < array.Count; i++)
                 {
-                    if (array[i] is { } item) AssertNoSecrets(item, names, $"{path}[{i}]");
+                    if (array[i] is { } item)
+                    {
+                        AssertNoSecrets(item, names, $"{path}[{i}]");
+                    }
                 }
                 break;
             case JsonValue value when value.TryGetValue<string>(out var s):
-                if (s.Contains("diagrid://", StringComparison.Ordinal) && s != MockApiToken) throw new InvalidOperationException($"{path}: diagrid:// value other than the mock");
-                if (Email().IsMatch(s) && !s.EndsWith("@example.com", StringComparison.Ordinal)) throw new InvalidOperationException($"{path}: e-mail address");
-                if (s != MockUuid && OpaqueId().IsMatch(s)) throw new InvalidOperationException($"{path}: long opaque string");
-                if (names.Any(n => s.Contains(n, StringComparison.Ordinal))) throw new InvalidOperationException($"{path}: throwaway name not normalised");
+                if (s.Contains("diagrid://", StringComparison.Ordinal) && s != MockApiToken)
+                {
+                    throw new InvalidOperationException($"{path}: diagrid:// value other than the mock");
+                }
+
+                if (Email().IsMatch(s) && !s.EndsWith("@example.com", StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException($"{path}: e-mail address");
+                }
+
+                if (s != MockUuid && OpaqueId().IsMatch(s))
+                {
+                    throw new InvalidOperationException($"{path}: long opaque string");
+                }
+
+                if (names.Any(n => s.Contains(n, StringComparison.Ordinal)))
+                {
+                    throw new InvalidOperationException($"{path}: throwaway name not normalised");
+                }
+
                 break;
         }
     }

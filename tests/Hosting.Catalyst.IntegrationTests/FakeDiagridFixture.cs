@@ -93,7 +93,10 @@ public sealed class FakeDiagridFixture : IDisposable
 
     private List<string[]> ReadInvocations()
     {
-        if (!File.Exists(_recordPath)) return [];
+        if (!File.Exists(_recordPath))
+        {
+            return [];
+        }
         // FileShare.ReadWrite so a concurrently appending fake is never denied.
         using var fs = new FileStream(_recordPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         using var reader = new StreamReader(fs);
@@ -101,14 +104,21 @@ public sealed class FakeDiagridFixture : IDisposable
         string? line;
         while ((line = reader.ReadLine()) is not null)
         {
-            if (line.Length > 0) list.Add(JsonSerializer.Deserialize<string[]>(line)!);
+            if (line.Length > 0)
+            {
+                list.Add(JsonSerializer.Deserialize<string[]>(line)!);
+            }
         }
         return list;
     }
 
     public void Reset()
     {
-        if (File.Exists(_recordPath)) File.Delete(_recordPath);
+        if (File.Exists(_recordPath))
+        {
+            File.Delete(_recordPath);
+        }
+
         SetScenario(new Scenario());
     }
 
@@ -130,7 +140,11 @@ public sealed class FakeDiagridFixture : IDisposable
             RedirectStandardInput = true,
             UseShellExecute = false,
         };
-        foreach (var a in args) psi.ArgumentList.Add(a);
+        foreach (var a in args)
+        {
+            psi.ArgumentList.Add(a);
+        }
+
         Configure(psi);
 
         using var process = Process.Start(psi)!;
@@ -143,7 +157,11 @@ public sealed class FakeDiagridFixture : IDisposable
 
     public void Dispose()
     {
-        foreach (var (key, value) in _savedEnv) Environment.SetEnvironmentVariable(key, value);
+        foreach (var (key, value) in _savedEnv)
+        {
+            Environment.SetEnvironmentVariable(key, value);
+        }
+
         try { Directory.Delete(_root, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 

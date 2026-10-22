@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using FakeDiagrid;
@@ -10,7 +11,7 @@ var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 var childSleep = Environment.GetEnvironmentVariable("FAKE_DIAGRID_CHILD_SLEEP_MS");
 if (!string.IsNullOrEmpty(childSleep))
 {
-    Thread.Sleep(int.Parse(childSleep));
+    Thread.Sleep(int.Parse(childSleep, CultureInfo.InvariantCulture));
     return 0;
 }
 
@@ -71,7 +72,10 @@ List<string> ReadRecorded()
             string? line;
             while ((line = reader.ReadLine()) is not null)
             {
-                if (line.Length > 0) lines.Add(string.Join(' ', JsonSerializer.Deserialize<string[]>(line)!));
+                if (line.Length > 0)
+                {
+                    lines.Add(string.Join(' ', JsonSerializer.Deserialize<string[]>(line)!));
+                }
             }
             return lines;
         }
@@ -102,7 +106,11 @@ void WriteStdOut()
     {
         using var stdout = Console.OpenStandardOutput();
         var bytes = Encoding.UTF8.GetBytes(response.StdOut);
-        for (var i = 0; i < response.StdOutRepeat; i++) stdout.Write(bytes);
+        for (var i = 0; i < response.StdOutRepeat; i++)
+        {
+            stdout.Write(bytes);
+        }
+
         stdout.Flush();
     }
 }
@@ -113,7 +121,11 @@ void WriteStdErr()
     {
         using var stderr = Console.OpenStandardError();
         var bytes = Encoding.UTF8.GetBytes(response.StdErr);
-        for (var i = 0; i < response.StdErrRepeat; i++) stderr.Write(bytes);
+        for (var i = 0; i < response.StdErrRepeat; i++)
+        {
+            stderr.Write(bytes);
+        }
+
         stderr.Flush();
     }
 }
@@ -130,11 +142,14 @@ if (response.ReadStdInForever)
 if (response.LeakBackgroundChildMilliseconds > 0)
 {
     var child = new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false };
-    child.Environment["FAKE_DIAGRID_CHILD_SLEEP_MS"] = response.LeakBackgroundChildMilliseconds.ToString();
+    child.Environment["FAKE_DIAGRID_CHILD_SLEEP_MS"] = response.LeakBackgroundChildMilliseconds.ToString(CultureInfo.InvariantCulture);
     child.Environment.Remove("FAKE_DIAGRID_RECORD");
     System.Diagnostics.Process.Start(child)?.Dispose();
 }
 
-if (response.SleepMilliseconds > 0) Thread.Sleep(response.SleepMilliseconds);
+if (response.SleepMilliseconds > 0)
+{
+    Thread.Sleep(response.SleepMilliseconds);
+}
 
 return response.ExitCode;

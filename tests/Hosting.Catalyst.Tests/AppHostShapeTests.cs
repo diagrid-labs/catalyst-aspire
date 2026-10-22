@@ -25,7 +25,11 @@ public class AppHostShapeTests
     private static string RepoFile(params string[] parts)
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "catalyst-aspire.sln"))) dir = dir.Parent;
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "catalyst-aspire.sln")))
+        {
+            dir = dir.Parent;
+        }
+
         Assert.NotNull(dir);
         return Path.Combine([dir.FullName, .. parts]);
     }
@@ -57,14 +61,14 @@ public class AppHostShapeTests
         Assert.Equal(useCatalyst, !api.Resource.Annotations.OfType<DaprSidecarAnnotation>().Any());
     }
 
-    // Mutation: ignore USE_CATALYST in UseCatalyst() -> the true row sees no Catalyst project.
+    // Mutation: ignore USE_CATALYST in UseCatalystAsync() -> the true row sees no Catalyst project.
     [Theory]
     [InlineData("true", true)]
     [InlineData("false", false)]
     public void The_USE_CATALYST_setting_selects_the_side(string value, bool expectCatalyst)
     {
         var builder = DistributedApplication.CreateBuilder([$"USE_CATALYST={value}"]);
-        DemoWiring.Configure<FakeApi>(builder, DemoWiring.UseCatalyst(builder));
+        DemoWiring.Configure<FakeApi>(builder, DemoWiring.UseCatalystAsync(builder));
 
         Assert.Equal(expectCatalyst, builder.Resources.Any(r => r is CatalystProject));
     }
@@ -119,7 +123,9 @@ public class AppHostShapeTests
         // The literals appear only in the constant declarations, so every call must go through the constants.
         // Mutation: PublishEventAsync("pubsub2", ...) or SaveStateAsync("statestore2", ...) with a literal.
         foreach (var literal in new[] { "\"statestore\"", "\"pubsub\"", "\"orders\"" })
-            Assert.Equal(1, Regex.Matches(source, Regex.Escape(literal), RegexOptions.CultureInvariant).Count);
+        {
+            Assert.Single(Regex.Matches(source, Regex.Escape(literal), RegexOptions.CultureInvariant));
+        }
         // Positive pins that the constants are actually used (a literal-free call that ignores them still fails).
         Assert.Contains("PublishEventAsync(PubSub, Topic, ", source, StringComparison.Ordinal);
         Assert.Contains("SaveStateAsync(StateStore, ", source, StringComparison.Ordinal);

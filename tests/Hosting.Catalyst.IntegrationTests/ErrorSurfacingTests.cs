@@ -27,7 +27,7 @@ public class ErrorSurfacingTests
         });
 
         var ex = await Assert.ThrowsAsync<CatalystCliException>(
-            () => Commands.CreateProject("demo", new() { Region = "nope" }, default));
+            () => Commands.CreateProjectAsync("demo", new() { Region = "nope" }, default));
 
         Assert.Contains("region nope not found", ex.Message);
         // Ordinal: a culture-sensitive search treats ESC as ignorable and "finds" it in any string.
@@ -47,7 +47,7 @@ public class ErrorSurfacingTests
         });
 
         var ex = await Assert.ThrowsAsync<CatalystCliException>(
-            () => new CliCatalystProvisioner().CreateProject("demo", new(), default));
+            () => new CliCatalystProvisioner().CreateProjectAsync("demo", new(), default));
 
         Assert.Contains("maximum number of projects", ex.Message);
     }
@@ -62,7 +62,7 @@ public class ErrorSurfacingTests
         });
 
         await Assert.ThrowsAsync<CatalystCliException>(
-            () => Commands.CreateProject("demo", new(), default));
+            () => Commands.CreateProjectAsync("demo", new(), default));
     }
 
     [Fact(Timeout = 30_000)]
@@ -74,7 +74,7 @@ public class ErrorSurfacingTests
             Responses = [new() { ExitCode = 0, StdErr = "A new release of diagrid is available: 1 -> 2\n" }],
         });
 
-        await Commands.CreateProject("demo", new(), default);
+        await Commands.CreateProjectAsync("demo", new(), default);
     }
 
     [Fact(Timeout = 30_000)]
@@ -97,7 +97,7 @@ public class ErrorSurfacingTests
         project.Identities.Add(new Aspire.Hosting.ApplicationModel.ContainerResource("a"), new(Diagrid.Aspire.Hosting.Catalyst.Model.IdentityKind.App, a));
         project.Identities.Add(new Aspire.Hosting.ApplicationModel.ContainerResource("b"), new(Diagrid.Aspire.Hosting.Catalyst.Model.IdentityKind.App, b));
 
-        await Assert.ThrowsAsync<CatalystCliException>(() => handler.ProvisionCatalyst(default));
+        await Assert.ThrowsAsync<CatalystCliException>(() => handler.ProvisionCatalystAsync(default));
 
         // The project endpoints were resolved before the failure, so only the identities are still pending.
         Assert.True(a.Task.IsFaulted, "a failed identity's TCS must be faulted, not left pending");
@@ -119,7 +119,7 @@ public class ErrorSurfacingTests
         });
         var (project, handler, _) = HandlerHarness.Build();
 
-        await Assert.ThrowsAsync<CatalystCliException>(() => handler.ProvisionCatalyst(default));
+        await Assert.ThrowsAsync<CatalystCliException>(() => handler.ProvisionCatalystAsync(default));
 
         Assert.True(project.HttpEndpoint.Task.IsFaulted);
         Assert.True(project.GrpcEndpoint.Task.IsFaulted);

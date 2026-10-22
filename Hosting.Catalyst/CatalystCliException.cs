@@ -41,8 +41,16 @@ public sealed class CatalystCliException : Exception
     )
     {
         var message = $"'diagrid {string.Join(" ", arguments)}' failed with exit code {exitCode}.";
-        if (!string.IsNullOrWhiteSpace(stdErr)) message += $" {stdErr.Trim()}";
-        if (outputTruncated) message += " (The CLI's output was cut off, so the error text above may be incomplete.)";
+        if (!string.IsNullOrWhiteSpace(stdErr))
+        {
+            message += $" {stdErr.Trim()}";
+        }
+
+        if (outputTruncated)
+        {
+            message += " (The CLI's output was cut off, so the error text above may be incomplete.)";
+        }
+
         return message;
     }
 }

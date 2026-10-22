@@ -32,7 +32,7 @@ public class ReadinessTests
         fake.SetScenario(new Scenario { Responses = [ProjectGetPending(times: 1), ProjectGetReady()] });
 
         var details = await new CliCatalystProvisioner()
-            .WaitForProjectReady("demo", TimeSpan.FromSeconds(10), default);
+            .WaitForProjectReadyAsync("demo", TimeSpan.FromSeconds(10), default);
 
         Assert.Equal(new Uri("https://http.r1.diagrid.io/v1/demo"), details.HttpEndpoint);
         Assert.Equal(new Uri("https://grpc.r1.diagrid.io:7443/demo"), details.GrpcEndpoint);
@@ -45,7 +45,7 @@ public class ReadinessTests
         using var fake = new FakeDiagridFixture();
         fake.SetScenario(new Scenario { Responses = [ProjectGetReady()] });
 
-        await new CliCatalystProvisioner().WaitForProjectReady("demo", TimeSpan.FromSeconds(10), default);
+        await new CliCatalystProvisioner().WaitForProjectReadyAsync("demo", TimeSpan.FromSeconds(10), default);
 
         Assert.Equal(1, ProjectGets(fake));
     }
@@ -56,7 +56,7 @@ public class ReadinessTests
         using var fake = new FakeDiagridFixture();
         fake.SetScenario(new Scenario { Responses = [ProjectGetPending()] });
 
-        Assert.Null(await new CliCatalystProvisioner().TryGetProjectDetails("demo", default));
+        Assert.Null(await new CliCatalystProvisioner().TryGetProjectDetailsAsync("demo", default));
     }
 
     [Fact(Timeout = 30_000)]
@@ -66,7 +66,7 @@ public class ReadinessTests
         fake.SetScenario(new Scenario { Responses = [ProjectGetPending()] });
 
         var ex = await Assert.ThrowsAsync<TimeoutException>(
-            () => new CliCatalystProvisioner().WaitForProjectReady("demo", TimeSpan.FromSeconds(2), default));
+            () => new CliCatalystProvisioner().WaitForProjectReadyAsync("demo", TimeSpan.FromSeconds(2), default));
 
         Assert.Contains("'demo'", ex.Message, StringComparison.Ordinal);
         Assert.Matches(@"after \d+s", ex.Message);
@@ -103,14 +103,14 @@ public class ReadinessTests
 
         var stopwatch = Stopwatch.StartNew();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => new CliCatalystProvisioner().WaitForProjectReady("demo", TimeSpan.FromMinutes(5), cts.Token));
+            () => new CliCatalystProvisioner().WaitForProjectReadyAsync("demo", TimeSpan.FromMinutes(5), cts.Token));
 
         // The 5 minute timeout is the mutation this catches: a loop that ignored the token would run to it.
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(10), $"took {stopwatch.Elapsed}");
     }
 
     // The handler path: LoadProjectDetailsAsync is what production runs, so this is the test that fails if it
-    // stops calling WaitForProjectReady (a bare TryGetProjectDetails would hand it null, a bare parse would throw).
+    // stops calling WaitForProjectReadyAsync (a bare TryGetProjectDetailsAsync would hand it null, a bare parse would throw).
     [Fact(Timeout = 60_000)]
     public async Task Provisioning_waits_for_a_starting_project_then_publishes_its_endpoints()
     {
@@ -121,7 +121,7 @@ public class ReadinessTests
         });
         var (project, handler, states) = Build();
 
-        await handler.ProvisionCatalyst(default);
+        await handler.ProvisionCatalystAsync(default);
 
         Assert.Equal("https://http.r1.diagrid.io/v1/demo", await project.HttpEndpoint.Task);
         Assert.Equal("https://grpc.r1.diagrid.io:7443/demo", await project.GrpcEndpoint.Task);
@@ -137,7 +137,7 @@ public class ReadinessTests
         var (project, handler, states) = Build();
         using var cts = new CancellationTokenSource();
 
-        var provisioning = handler.ProvisionCatalyst(cts.Token);
+        var provisioning = handler.ProvisionCatalystAsync(cts.Token);
         // Cancel only once the handler is demonstrably inside the wait, however slow the machine is.
         await states.WaitFor(CatalystLifecycleHandler.WaitingForProjectState, TimeSpan.FromSeconds(20));
         var stopwatch = Stopwatch.StartNew();

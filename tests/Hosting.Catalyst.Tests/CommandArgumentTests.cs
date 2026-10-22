@@ -13,8 +13,13 @@ public class CommandArgumentTests
         => Assert.Equal(
             ["app", "create", "test-api", "--project", "demo", "--endpoint", "http://localhost:5001",
              "--endpoint-token", "t", "--endpoint-protocol", "http", "--wait", "--ignore-if-exists"],
-            Commands.BuildCreateIdentityArgs(IdentityKind.App, "test-api", new() {
-                Project = "demo", Endpoint = "http://localhost:5001", EndpointToken = "t", EndpointProtocol = "http" }));
+            Commands.BuildCreateIdentityArgs(IdentityKind.App, "test-api", new()
+            {
+                Project = "demo",
+                Endpoint = "http://localhost:5001",
+                EndpointToken = "t",
+                EndpointProtocol = "http"
+            }));
 
     [Fact]
     public void Create_agent_uses_the_agent_noun()
@@ -127,7 +132,10 @@ public class CommandArgumentTests
     {
         var args = Commands.BuildCreateSubscriptionArgs("sub", new()
         {
-            Project = "demo", Component = "ps", Topic = "t", Route = "/r",
+            Project = "demo",
+            Component = "ps",
+            Topic = "t",
+            Route = "/r",
         });
 
         Assert.DoesNotContain("--ignore-if-exists", args);
@@ -183,7 +191,7 @@ public class CommandArgumentTests
         // Any static method named Build*Args returning a string sequence counts, whatever its visibility.
         var reflected = typeof(Commands)
             .GetMethods(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
-            .Where(m => m.Name.StartsWith("Build") && m.Name.EndsWith("Args")
+            .Where(m => m.Name.StartsWith("Build", StringComparison.Ordinal) && m.Name.EndsWith("Args", StringComparison.Ordinal)
                         && typeof(IEnumerable<string>).IsAssignableFrom(m.ReturnType))
             .Select(m => m.Name)
             .Distinct()

@@ -34,7 +34,11 @@ internal static class CatalystCli
     internal static CatalystCliException NotLoggedIn(IReadOnlyList<string> arguments, int exitCode, string cleanedStdErr)
     {
         var message = "You are not signed in to Diagrid. Run 'diagrid login' in a terminal, then restart the AppHost.";
-        if (!string.IsNullOrWhiteSpace(cleanedStdErr)) message += $" (diagrid said: {cleanedStdErr.Trim()})";
+        if (!string.IsNullOrWhiteSpace(cleanedStdErr))
+        {
+            message += $" (diagrid said: {cleanedStdErr.Trim()})";
+        }
+
         return new(arguments, exitCode, cleanedStdErr, message);
     }
 
@@ -63,7 +67,10 @@ internal static class CatalystCli
         foreach (var line in stdOut.Split('\n'))
         {
             var colon = line.IndexOf(':');
-            if (colon <= 0 || !line.AsSpan(0, colon).Trim().Equals("Version", StringComparison.OrdinalIgnoreCase)) continue;
+            if (colon <= 0 || !line.AsSpan(0, colon).Trim().Equals("Version", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
 
             var value = line.Substring(colon + 1).Trim().TrimStart('v', 'V');
             text = value;
@@ -80,11 +87,19 @@ internal static class CatalystCli
     /// message, so an unrecognised output format must not become an outage. A real capability gap still surfaces at the
     /// first create, as the CLI's own "unknown flag" error.
     /// </summary>
-    internal static bool EnsureSupportedVersion(IReadOnlyList<string> arguments, string stdOut)
+    internal static bool EnsureSupportedVersionAsync(IReadOnlyList<string> arguments, string stdOut)
     {
         var version = ParseVersion(stdOut, out var text);
-        if (version is null) return false;
-        if (version < Version.Parse(MinimumVersion)) throw TooOld(arguments, text!);
+        if (version is null)
+        {
+            return false;
+        }
+
+        if (version < Version.Parse(MinimumVersion))
+        {
+            throw TooOld(arguments, text!);
+        }
+
         return true;
     }
 }

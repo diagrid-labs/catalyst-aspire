@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using FakeDiagrid;
 
 namespace Hosting.Catalyst.IntegrationTests;
@@ -123,7 +124,10 @@ public class FakeDiagridFixtureTests
         }
         finally
         {
-            if (!process.HasExited) process.Kill();
+            if (!process.HasExited)
+            {
+                process.Kill();
+            }
         }
     }
 
@@ -149,13 +153,17 @@ public class FakeDiagridFixtureTests
         using var fake = new FakeDiagridFixture();
         fake.SetScenario(new Scenario { Responses = [new() { StdOut = "ok" }] });
 
-        var runs = Enumerable.Range(0, 8).Select(i => Task.Run(() => fake.RunAsync("run", i.ToString()))).ToArray();
+        var runs = Enumerable.Range(0, 8).Select(i => Task.Run(() => fake.RunAsync("run", i.ToString(CultureInfo.InvariantCulture)))).ToArray();
         // Read while writers are active; must never be denied.
-        while (!runs.All(r => r.IsCompleted)) _ = fake.Invocations;
+        while (!runs.All(r => r.IsCompleted))
+        {
+            _ = fake.Invocations;
+        }
+
         await Task.WhenAll(runs);
 
         Assert.All(runs, r => Assert.Equal(0, r.Result.ExitCode));
         var seen = fake.Invocations.Select(a => a[1]).OrderBy(s => s, StringComparer.Ordinal).ToArray();
-        Assert.Equal(Enumerable.Range(0, 8).Select(i => i.ToString()).OrderBy(s => s, StringComparer.Ordinal), seen);
+        Assert.Equal(Enumerable.Range(0, 8).Select(i => i.ToString(CultureInfo.InvariantCulture)).OrderBy(s => s, StringComparer.Ordinal), seen);
     }
 }

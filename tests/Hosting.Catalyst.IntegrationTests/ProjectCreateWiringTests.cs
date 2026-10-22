@@ -8,7 +8,7 @@ namespace Hosting.Catalyst.IntegrationTests;
 [Collection(FakeDiagridCollection.Name)]
 public class ProjectCreateWiringTests
 {
-    // Pins the wiring, not the mapping: reverting CliCatalystProvisioner.CreateProject to hardcoded
+    // Pins the wiring, not the mapping: reverting CliCatalystProvisioner.CreateProjectAsync to hardcoded
     // managed-service flags and no region makes this fail.
     [Fact(Timeout = 30_000)]
     public async Task Provisioner_CreateProject_sends_the_descriptor_options_to_the_cli()
@@ -16,7 +16,7 @@ public class ProjectCreateWiringTests
         using var fake = new FakeDiagridFixture();
         fake.SetScenario(new Scenario { Responses = [new() { ExitCode = 0 }] });
 
-        await new CliCatalystProvisioner().CreateProject("demo", new ProjectDescriptor
+        await new CliCatalystProvisioner().CreateProjectAsync("demo", new ProjectDescriptor
         {
             EnableManagedWorkflow = true,
             Region = "aws-us-west",

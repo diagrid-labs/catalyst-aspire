@@ -3,3 +3,132 @@ root = true
 [*]
 end_of_line = lf
 insert_final_newline = true
+trim_trailing_whitespace = true
+charset = utf-8
+indent_style = space
+
+[*.{json,yaml,yml}]
+indent_size = 2
+
+[*.{sh,bash}]
+indent_size = 2
+
+[*.{csproj,props,targets}]
+indent_size = 4
+
+[*.cs]
+indent_size = 4
+max_line_length = 140
+
+#### Usings ####
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+csharp_using_directive_placement = outside_namespace:warning
+
+#### Namespaces, braces, blocks ####
+csharp_style_namespace_declarations = file_scoped:warning
+# Braces always: this repo mixed braced and braceless `if`s inside single methods.
+csharp_prefer_braces = true:warning
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+
+#### Spacing ####
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_around_binary_operators = before_and_after
+
+#### `this.` and type preferences ####
+dotnet_style_qualification_for_field = false:warning
+dotnet_style_qualification_for_property = false:warning
+dotnet_style_qualification_for_method = false:warning
+dotnet_style_qualification_for_event = false:warning
+csharp_style_var_for_built_in_types = true:silent
+csharp_style_var_when_type_is_apparent = true:silent
+csharp_style_var_elsewhere = true:silent
+
+#### Modern C# the codebase already uses elsewhere ####
+csharp_style_expression_bodied_methods = when_on_single_line:silent
+csharp_style_expression_bodied_properties = true:silent
+csharp_style_pattern_matching_over_is_with_cast_check = true:warning
+csharp_style_pattern_matching_over_as_with_null_check = true:warning
+csharp_style_prefer_pattern_matching = true:suggestion
+csharp_style_throw_expression = true:suggestion
+csharp_style_prefer_switch_expression = true:suggestion
+csharp_style_inlined_variable_declaration = true:suggestion
+csharp_prefer_simple_using_statement = true:suggestion
+csharp_style_prefer_primary_constructors = true:suggestion
+dotnet_style_collection_initializer = true:suggestion
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_prefer_conditional_expression_over_assignment = true:silent
+dotnet_style_prefer_conditional_expression_over_return = true:silent
+dotnet_style_null_propagation = true:warning
+dotnet_style_coalesce_expression = true:warning
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true:warning
+csharp_style_prefer_parameter_null_checking = true:suggestion
+# A single-parameter lambda keeps its parentheses off: the repo wrote both `(previous) =>` and `x =>`.
+csharp_style_prefer_method_group_conversion = true:silent
+
+#### Naming: private fields are _camelCase, everything public is PascalCase ####
+# Rules are matched in file order, first match wins. Private static readonly values read as named constants
+# (InitialPollDelay, MaxPollDelay), so they stay PascalCase; only instance fields take the underscore.
+dotnet_naming_rule.private_static_fields_pascal.symbols = private_static_fields
+dotnet_naming_rule.private_static_fields_pascal.style = pascal_case
+dotnet_naming_rule.private_static_fields_pascal.severity = warning
+dotnet_naming_symbols.private_static_fields.applicable_kinds = field
+dotnet_naming_symbols.private_static_fields.applicable_accessibilities = private
+dotnet_naming_symbols.private_static_fields.required_modifiers = static
+
+dotnet_naming_rule.private_fields_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_underscore.style = underscore_camel_case
+dotnet_naming_rule.private_fields_underscore.severity = warning
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.underscore_camel_case.capitalization = camel_case
+dotnet_naming_style.underscore_camel_case.required_prefix = _
+
+dotnet_naming_rule.constants_pascal.symbols = constants
+dotnet_naming_rule.constants_pascal.style = pascal_case
+dotnet_naming_rule.constants_pascal.severity = warning
+dotnet_naming_symbols.constants.applicable_kinds = field
+dotnet_naming_symbols.constants.required_modifiers = const
+dotnet_naming_style.pascal_case.capitalization = pascal_case
+
+dotnet_naming_rule.interfaces_prefixed_i.symbols = interfaces
+dotnet_naming_rule.interfaces_prefixed_i.style = i_prefixed
+dotnet_naming_rule.interfaces_prefixed_i.severity = warning
+dotnet_naming_symbols.interfaces.applicable_kinds = interface
+dotnet_naming_style.i_prefixed.capitalization = pascal_case
+dotnet_naming_style.i_prefixed.required_prefix = I
+
+dotnet_naming_rule.type_parameters_prefixed_t.symbols = type_parameters
+dotnet_naming_rule.type_parameters_prefixed_t.style = t_prefixed
+dotnet_naming_rule.type_parameters_prefixed_t.severity = warning
+dotnet_naming_symbols.type_parameters.applicable_kinds = type_parameter
+dotnet_naming_style.t_prefixed.capitalization = pascal_case
+dotnet_naming_style.t_prefixed.required_prefix = T
+
+#### Analyzer severities ####
+# LoggerMessage source-generated delegates. A pure allocation optimisation, and every call site here runs once
+# at AppHost provisioning time, not in a request path. Not worth the indirection.
+dotnet_diagnostic.CA1848.severity = none
+# An exception that cannot say which CLI command failed is useless, so the standard parameterless/message-only
+# constructors are deliberately absent from CatalystCliException.
+dotnet_diagnostic.CA1032.severity = none
+
+# Demo apps: TestApi and AppHost are written in the single-file minimal-API style the .NET templates produce,
+# which puts DTOs and workflow types after top-level statements, where a file-scoped namespace cannot go. They
+# exist to be read the way a developer reads a template, and AppHostShapeTests asserts on their source text.
+[{TestApi,AppHost}/**.cs]
+dotnet_diagnostic.CA1050.severity = none
+
+# Tests: xUnit discovers public methods by attribute, and fixtures are instantiated by the framework.
+[tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1861.severity = none
+dotnet_diagnostic.CA1515.severity = none
+# xUnit's [CollectionDefinition] type is named after the collection; the suffix is the convention, not a smell.
+dotnet_diagnostic.CA1711.severity = none

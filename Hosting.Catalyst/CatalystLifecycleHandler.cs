@@ -8,20 +8,20 @@ using Microsoft.Extensions.Logging;
 
 namespace Diagrid.Aspire.Hosting.Catalyst;
 
-internal class CatalystLifecycleHandler(
+internal sealed class CatalystLifecycleHandler(
     CatalystProject catalystProject,
     ResourceLoggerService resourceLogger,
     ResourceNotificationService notifications,
-    CatalystProvisioner provisioner
+    ICatalystProvisioner provisioner
 )
 {
     internal const string CheckingCliState = "Checking Diagrid CLI";
     internal const string WaitingForProjectState = "Waiting for project";
     internal static readonly TimeSpan ProjectReadyTimeout = TimeSpan.FromMinutes(5);
 
-    private readonly ILogger logger = resourceLogger.GetLogger(catalystProject);
-    
-    public async Task ProvisionCatalyst(CancellationToken cancellationToken)
+    private readonly ILogger _logger = resourceLogger.GetLogger(catalystProject);
+
+    public async Task ProvisionCatalystAsync(CancellationToken cancellationToken)
     {
         LogWelcomeMessage();
 
@@ -58,9 +58,16 @@ internal class CatalystLifecycleHandler(
 
     private void LogWelcomeMessage()
     {
-        logger.LogInformation("\n" + LogoPicker.PickRandomLogo() + "\n");
-        logger.LogInformation("Welcome to the Catalyst Aspire integration!");
-        logger.LogInformation("Hang on as your environment is provisioned...");
+        // A constant template with the art as an argument: concatenating it in would make every run its own
+        // template, and ASCII art is exactly the kind of string that can contain brace characters.
+        // Guarded because PickRandomLogo reads an embedded resource, which is wasted work if Information is off.
+        if (_logger.IsEnabled(LogLevel.Information))
+        {
+            _logger.LogInformation("{Logo}", "\n" + LogoPicker.PickRandomLogo() + "\n");
+        }
+
+        _logger.LogInformation("Welcome to the Catalyst Aspire integration!");
+        _logger.LogInformation("Hang on as your environment is provisioned...");
     }
 
     private async Task InitializeProvisionerAsync(CancellationToken cancellationToken)
@@ -72,7 +79,7 @@ internal class CatalystLifecycleHandler(
 
         try
         {
-            await provisioner.Init(logger, cancellationToken);
+            await provisioner.InitializeAsync(_logger, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -81,7 +88,7 @@ internal class CatalystLifecycleHandler(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, ex.Message);
+            _logger.LogError(ex, "{Message}", ex.Message);
             FaultPending(ex);
 
             await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
@@ -102,7 +109,7 @@ internal class CatalystLifecycleHandler(
 
         try
         {
-            await provisioner.CreateProject(catalystProject.ProjectName, catalystProject.ProjectDescriptor, cancellationToken);
+            await provisioner.CreateProjectAsync(catalystProject.ProjectName, catalystProject.ProjectDescriptor, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -111,7 +118,7 @@ internal class CatalystLifecycleHandler(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, ex.Message);
+            _logger.LogError(ex, "{Message}", ex.Message);
             FaultPending(ex);
 
             await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
@@ -132,7 +139,7 @@ internal class CatalystLifecycleHandler(
 
         try
         {
-            await provisioner.UseProject(catalystProject.ProjectName, cancellationToken);
+            await provisioner.UseProjectAsync(catalystProject.ProjectName, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -141,7 +148,7 @@ internal class CatalystLifecycleHandler(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, ex.Message);
+            _logger.LogError(ex, "{Message}", ex.Message);
             FaultPending(ex);
 
             await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
@@ -168,7 +175,7 @@ internal class CatalystLifecycleHandler(
                 State = new(WaitingForProjectState, KnownResourceStateStyles.Info),
             });
 
-            var projectDetails = await provisioner.WaitForProjectReady(
+            var projectDetails = await provisioner.WaitForProjectReadyAsync(
                 catalystProject.ProjectName, ProjectReadyTimeout, cancellationToken);
 
             catalystProject.HttpEndpoint.SetResult(projectDetails.HttpEndpoint.ToString());
@@ -181,7 +188,7 @@ internal class CatalystLifecycleHandler(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, ex.Message);
+            _logger.LogError(ex, "{Message}", ex.Message);
             FaultPending(ex);
 
             await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
@@ -210,12 +217,12 @@ internal class CatalystLifecycleHandler(
                 switch (pair.Value.Kind)
                 {
                     case IdentityKind.Agent:
-                        await provisioner.CreateAgent(name, project, cancellationToken);
-                        pair.Value.Details.SetResult(await provisioner.GetAgentDetails(name, project, cancellationToken));
+                        await provisioner.CreateAgentAsync(name, project, cancellationToken);
+                        pair.Value.Details.SetResult(await provisioner.GetAgentDetailsAsync(name, project, cancellationToken));
                         break;
                     default:
-                        await provisioner.CreateApp(name, project, cancellationToken);
-                        pair.Value.Details.SetResult(await provisioner.GetAppDetails(name, project, cancellationToken));
+                        await provisioner.CreateAppAsync(name, project, cancellationToken);
+                        pair.Value.Details.SetResult(await provisioner.GetAppDetailsAsync(name, project, cancellationToken));
                         break;
                 }
             }
@@ -226,7 +233,7 @@ internal class CatalystLifecycleHandler(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, ex.Message);
+                _logger.LogError(ex, "{Message}", ex.Message);
                 FaultPending(ex);
 
                 await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
@@ -250,7 +257,7 @@ internal class CatalystLifecycleHandler(
         {
             try
             {
-                await provisioner.CreatePubSub(pair.Key, pair.Value, cancellationToken);
+                await provisioner.CreatePubSubAsync(pair.Key, pair.Value, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -259,7 +266,7 @@ internal class CatalystLifecycleHandler(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, ex.Message);
+                _logger.LogError(ex, "{Message}", ex.Message);
                 FaultPending(ex);
 
                 await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
@@ -275,7 +282,7 @@ internal class CatalystLifecycleHandler(
         {
             try
             {
-                await provisioner.CreateKvStore(pair.Key, pair.Value, cancellationToken);
+                await provisioner.CreateKvStoreAsync(pair.Key, pair.Value, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -284,7 +291,7 @@ internal class CatalystLifecycleHandler(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, ex.Message);
+                _logger.LogError(ex, "{Message}", ex.Message);
                 FaultPending(ex);
 
                 await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
@@ -312,7 +319,7 @@ internal class CatalystLifecycleHandler(
                 var backsDeclaredService = catalystProject.KvStores.ContainsKey(pair.Value.Name)
                                            || catalystProject.PubSubs.ContainsKey(pair.Value.Name);
 
-                await provisioner.UpsertComponent(pair.Value, catalystProject.ProjectName, backsDeclaredService, cancellationToken);
+                await provisioner.UpsertComponentAsync(pair.Value, catalystProject.ProjectName, backsDeclaredService, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -321,7 +328,7 @@ internal class CatalystLifecycleHandler(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, ex.Message);
+                _logger.LogError(ex, "{Message}", ex.Message);
                 FaultPending(ex);
 
                 await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
@@ -345,7 +352,7 @@ internal class CatalystLifecycleHandler(
         {
             try
             {
-                await provisioner.UpsertSubscription(catalystProject.ProjectName, pair.Value, cancellationToken);
+                await provisioner.UpsertSubscriptionAsync(catalystProject.ProjectName, pair.Value, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -354,7 +361,7 @@ internal class CatalystLifecycleHandler(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, ex.Message);
+                _logger.LogError(ex, "{Message}", ex.Message);
                 FaultPending(ex);
 
                 await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
@@ -366,7 +373,7 @@ internal class CatalystLifecycleHandler(
             }
         }
     }
-    
+
     private async Task CompleteProvisioningAsync()
     {
         await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
@@ -374,8 +381,8 @@ internal class CatalystLifecycleHandler(
             State = new(KnownResourceStates.Finished, KnownResourceStateStyles.Success),
         });
 
-        logger.LogInformation("Catalyst has been successfully initialized!");
-        
+        _logger.LogInformation("Catalyst has been successfully initialized!");
+
         await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
         {
             State = new(KnownResourceStates.Active, KnownResourceStateStyles.Success),

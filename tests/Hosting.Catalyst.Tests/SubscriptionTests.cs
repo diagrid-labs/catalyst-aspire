@@ -249,14 +249,14 @@ public class SubscriptionTests
 
     private static Diagrid.Aspire.Hosting.Catalyst.Cli.Options.CreateSubscriptionOptions Options(
         bool bulk = false, int? count = null, TimeSpan? awaitFor = null, IList<string>? scopes = null) => new()
-    {
-        Project = "demo",
-        Component = "events",
-        Topic = "orders",
-        Route = "/route",
-        Scopes = scopes ?? ["web", "worker"],
-        Bulk = bulk,
-        BulkMaxMessagesCount = count,
-        BulkMaxAwaitDuration = awaitFor,
-    };
+        {
+            Project = "demo",
+            Component = "events",
+            Topic = "orders",
+            Route = "/route",
+            Scopes = scopes ?? ["web", "worker"],
+            Bulk = bulk,
+            BulkMaxMessagesCount = count,
+            BulkMaxAwaitDuration = awaitFor,
+        };
 }

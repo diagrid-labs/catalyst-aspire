@@ -95,20 +95,29 @@ In the `AppHost` demo, the OSS side of the `USE_CATALYST` switch keeps workflow 
 
 ### Breaking API changes
 
-`CatalystProvisioner` is the swappable abstraction behind the CLI calls, and it changed in several places. If you implement or subclass it, you are affected:
+**Every interface and async method was renamed to follow the standard .NET conventions.** The package did not follow them before, and fixing it later would have cost another breaking release:
 
-- `CreateApp` and `GetAppDetails` gained a `projectName` parameter.
-- `GetProjectDetails` is replaced by `TryGetProjectDetails` and `WaitForProjectReady`.
-- `Init` gained an `ILogger` parameter.
-- `CheckKvStoreExists` is replaced by `KvStoreExists` and `PubSubExists`.
-- `CreateComponent` is now `UpsertComponent`, and it gained a third parameter, `bool isManagedServiceComponent`.
-- `CreateSubscription` is now `UpsertSubscription`.
-- `CreateAgent` and `GetAgentDetails` are new.
+- `CatalystProvisioner` is now **`ICatalystProvisioner`**, and `CatalystComponent` / `CatalystComponent<T>` are now **`ICatalystComponent`** / **`ICatalystComponent<T>`**. Interfaces take the `I` prefix.
+- **Every `Task`-returning method gained the `Async` suffix**: `CreateProject` → `CreateProjectAsync`, `GetAppDetails` → `GetAppDetailsAsync`, and so on for all 15 members of the interface. `Init` is now **`InitializeAsync`**.
+- The generic parameters on the `WithCatalyst*` extension methods are now `TResource` and `TMetadata`. Type parameter names are not part of the call site, so this one does not affect your code.
+
+A find-and-replace of `CatalystProvisioner` → `ICatalystProvisioner` plus the `Async` suffix covers the whole migration.
+
+`ICatalystProvisioner` is the swappable abstraction behind the CLI calls, and it also changed in several places. If you implement or subclass it, you are affected:
+
+- `CreateAppAsync` and `GetAppDetailsAsync` gained a `projectName` parameter.
+- `GetProjectDetails` is replaced by `TryGetProjectDetailsAsync` and `WaitForProjectReadyAsync`.
+- `InitializeAsync` gained an `ILogger` parameter.
+- `CheckKvStoreExists` is replaced by `KvStoreExistsAsync` and `PubSubExistsAsync`, whose parameters are now named `projectName` and `cancellationToken` (they were `project` and `ct`).
+- `CreateComponent` is now `UpsertComponentAsync`, and it gained a third parameter, `bool isManagedServiceComponent`.
+- `CreateSubscription` is now `UpsertSubscriptionAsync`.
+- `CreateAgentAsync` and `GetAgentDetailsAsync` are new.
 - `CreateAppOptions` is now `CreateIdentityOptions`. Properties were renamed (for example `AppEndpoint` to `Endpoint`) and `Project` is now required.
 - `CliAppDetails` and five CLI output DTOs were removed.
 - The `ResolveApiToken` signature changed.
 - `IgnoreIfExists` now defaults to `true` on four options records.
 - The **value** of the `SampleKvName` constant changed to `statestore`. C# inlines constant values at compile time, so anything compiled against the old package keeps using `kvstore` until you **recompile** it.
+- Errors raised by the `WithCatalyst*` builder methods are now `InvalidOperationException` rather than bare `System.Exception`, so you can catch them selectively. A `catch (Exception)` still works.
 
 ## Getting Started
 

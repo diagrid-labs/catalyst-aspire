@@ -36,7 +36,7 @@ public class ComponentReconcileTests
         project.KvStores.Add("statestore", new() { Project = "demo" });
         project.Components.Add("statestore", Component("statestore"));
 
-        await handler.ProvisionCatalyst(default);
+        await handler.ProvisionCatalystAsync(default);
 
         var kvCreate = IndexOf(fake, i => i is ["kv", "create", "statestore", ..]);
         var update = IndexOf(fake, i => i is ["component", "update", "statestore", ..]);
@@ -59,7 +59,7 @@ public class ComponentReconcileTests
         project.PubSubs.Add("pubsub", new() { Project = "demo" });
         project.Components.Add("pubsub", Component("pubsub"));
 
-        await handler.ProvisionCatalyst(default);
+        await handler.ProvisionCatalystAsync(default);
 
         Assert.True(IndexOf(fake, i => i is ["pubsub", "create", "pubsub", ..]) >= 0);
         Assert.True(IndexOf(fake, i => i is ["component", "update", "pubsub", ..]) >= 0);
@@ -75,7 +75,7 @@ public class ComponentReconcileTests
         project.KvStores.Add("statestore", new() { Project = "demo" });
         project.Components.Add("diagrid-homepage", Component("diagrid-homepage"));
 
-        await handler.ProvisionCatalyst(default);
+        await handler.ProvisionCatalystAsync(default);
 
         var args = fake.Invocations.Single(i => i is ["component", "create", "diagrid-homepage", ..]);
         Assert.Contains("--ignore-if-exists", args);
@@ -92,7 +92,7 @@ public class ComponentReconcileTests
         project.Components.Add("statestore", Component("statestore"));
         project.Components.Add("other", Component("other"));
 
-        await handler.ProvisionCatalyst(default);
+        await handler.ProvisionCatalystAsync(default);
 
         Assert.True(IndexOf(fake, i => i is ["component", "update", ..]) >= 0);
         Assert.True(IndexOf(fake, i => i is ["component", "create", ..]) >= 0);

@@ -2,31 +2,31 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Diagrid.Aspire.Hosting.Catalyst.Cli.Options;
 using Diagrid.Aspire.Hosting.Catalyst.Model;
+using Microsoft.Extensions.Logging;
 
 namespace Diagrid.Aspire.Hosting.Catalyst.Cli;
 
-public class CliCatalystProvisioner : CatalystProvisioner
+public class CliCatalystProvisioner : ICatalystProvisioner
 {
-    public async Task Init(ILogger logger, CancellationToken cancellationToken = default)
+    public async Task InitializeAsync(ILogger logger, CancellationToken cancellationToken = default)
     {
         // Preflight, in this order: nothing below is worth running against a missing, too-old or signed-out CLI.
-        await Commands.EnsureSupportedVersion(logger, cancellationToken);
-        await Commands.EnsureLoggedIn(cancellationToken);
+        await Commands.EnsureSupportedVersionAsync(logger, cancellationToken);
+        await Commands.EnsureLoggedInAsync(cancellationToken);
 
         // Best-effort courtesy: every command passes --project explicitly, so nothing depends on this succeeding.
         try
         {
-            await Commands.UseCatalyst(cancellationToken);
+            await Commands.UseCatalystAsync(cancellationToken);
         }
         catch (CatalystCliException)
         {
         }
     }
 
-    public async Task UpsertSubscription(string projectName, SubscriptionDescriptor descriptor, CancellationToken cancellationToken)
+    public async Task UpsertSubscriptionAsync(string projectName, SubscriptionDescriptor descriptor, CancellationToken cancellationToken)
     {
         var options = new CreateSubscriptionOptions
         {
@@ -42,19 +42,19 @@ public class CliCatalystProvisioner : CatalystProvisioner
 
         // subscription create has no --ignore-if-exists, so probe. The probe reads only the exit code, and the CLI
         // exits 1 for every error: a failed probe falls through to create, which fails loudly if the cause was real.
-        if (await Commands.SubscriptionExists(descriptor.Name, projectName, cancellationToken))
+        if (await Commands.SubscriptionExistsAsync(descriptor.Name, projectName, cancellationToken))
         {
-            await Commands.UpdateSubscription(descriptor.Name, options, cancellationToken);
+            await Commands.UpdateSubscriptionAsync(descriptor.Name, options, cancellationToken);
         }
         else
         {
-            await Commands.CreateSubscription(descriptor.Name, options, cancellationToken);
+            await Commands.CreateSubscriptionAsync(descriptor.Name, options, cancellationToken);
         }
     }
 
-    public async Task CreateProject(string projectName, ProjectDescriptor descriptor, CancellationToken cancellationToken)
+    public async Task CreateProjectAsync(string projectName, ProjectDescriptor descriptor, CancellationToken cancellationToken)
     {
-        await Commands.CreateProject(projectName, ToCreateOptions(descriptor), cancellationToken);
+        await Commands.CreateProjectAsync(projectName, ToCreateOptions(descriptor), cancellationToken);
     }
 
     internal static CreateProjectOptions ToCreateOptions(ProjectDescriptor descriptor) => new()
@@ -69,21 +69,21 @@ public class CliCatalystProvisioner : CatalystProvisioner
         DisableAppTunnels = descriptor.DisableAppTunnels,
     };
 
-    public async Task UseProject(string projectName, CancellationToken cancellationToken)
+    public async Task UseProjectAsync(string projectName, CancellationToken cancellationToken)
     {
         // Best-effort courtesy: every command passes --project explicitly, so nothing depends on this succeeding.
         try
         {
-            await Commands.UseProject(projectName, cancellationToken);
+            await Commands.UseProjectAsync(projectName, cancellationToken);
         }
         catch (CatalystCliException)
         {
         }
     }
 
-    public async Task<ProjectDetails?> TryGetProjectDetails(string projectName, CancellationToken cancellationToken)
+    public async Task<ProjectDetails?> TryGetProjectDetailsAsync(string projectName, CancellationToken cancellationToken)
     {
-        var cliDetails = await Commands.GetProjectDetails(projectName, cancellationToken);
+        var cliDetails = await Commands.GetProjectDetailsAsync(projectName, cancellationToken);
 
         return cliDetails.ToProjectDetails();
     }
@@ -91,7 +91,7 @@ public class CliCatalystProvisioner : CatalystProvisioner
     private static readonly TimeSpan InitialPollDelay = TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan MaxPollDelay = TimeSpan.FromSeconds(5);
 
-    public async Task<ProjectDetails> WaitForProjectReady(
+    public async Task<ProjectDetails> WaitForProjectReadyAsync(
         string projectName,
         TimeSpan timeout,
         CancellationToken cancellationToken
@@ -106,7 +106,7 @@ public class CliCatalystProvisioner : CatalystProvisioner
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var details = await TryGetProjectDetails(projectName, cancellationToken);
+            var details = await TryGetProjectDetailsAsync(projectName, cancellationToken);
 
             if (details is not null)
             {
@@ -127,15 +127,15 @@ public class CliCatalystProvisioner : CatalystProvisioner
         }
     }
 
-    public async Task CreateApp(string name, string projectName, CancellationToken cancellationToken)
+    public async Task CreateAppAsync(string name, string projectName, CancellationToken cancellationToken)
     {
         // --ignore-if-exists (the CreateIdentityOptions default) makes this idempotent.
-        await Commands.CreateIdentity(IdentityKind.App, name, new() { Project = projectName }, cancellationToken);
+        await Commands.CreateIdentityAsync(IdentityKind.App, name, new() { Project = projectName }, cancellationToken);
     }
 
-    public async Task<AppDetails> GetAppDetails(string name, string projectName, CancellationToken cancellationToken)
+    public async Task<AppDetails> GetAppDetailsAsync(string name, string projectName, CancellationToken cancellationToken)
     {
-        var details = await Commands.GetIdentityDetails(IdentityKind.App, name, projectName, cancellationToken);
+        var details = await Commands.GetIdentityDetailsAsync(IdentityKind.App, name, projectName, cancellationToken);
 
         return new()
         {
@@ -143,14 +143,14 @@ public class CliCatalystProvisioner : CatalystProvisioner
         };
     }
 
-    public async Task CreateAgent(string name, string projectName, CancellationToken cancellationToken)
+    public async Task CreateAgentAsync(string name, string projectName, CancellationToken cancellationToken)
     {
-        await Commands.CreateIdentity(IdentityKind.Agent, name, new() { Project = projectName }, cancellationToken);
+        await Commands.CreateIdentityAsync(IdentityKind.Agent, name, new() { Project = projectName }, cancellationToken);
     }
 
-    public async Task<AppDetails> GetAgentDetails(string name, string projectName, CancellationToken cancellationToken)
+    public async Task<AppDetails> GetAgentDetailsAsync(string name, string projectName, CancellationToken cancellationToken)
     {
-        var details = await Commands.GetIdentityDetails(IdentityKind.Agent, name, projectName, cancellationToken);
+        var details = await Commands.GetIdentityDetailsAsync(IdentityKind.Agent, name, projectName, cancellationToken);
 
         return new()
         {
@@ -158,23 +158,23 @@ public class CliCatalystProvisioner : CatalystProvisioner
         };
     }
 
-    public async Task UpsertComponent(ComponentDescriptor descriptor, string projectName, bool isManagedServiceComponent, CancellationToken cancellationToken)
+    public async Task UpsertComponentAsync(ComponentDescriptor descriptor, string projectName, bool isManagedServiceComponent, CancellationToken cancellationToken)
     {
         var options = new CreateComponentOptions { Project = projectName };
 
         if (isManagedServiceComponent)
         {
-            await Commands.UpdateComponent(descriptor, options, cancellationToken);
+            await Commands.UpdateComponentAsync(descriptor, options, cancellationToken);
         }
         else
         {
-            await Commands.CreateComponent(descriptor, options, cancellationToken);
+            await Commands.CreateComponentAsync(descriptor, options, cancellationToken);
         }
     }
 
-    public async Task CreatePubSub(string name, PubSubDescriptor options, CancellationToken cancellationToken)
+    public async Task CreatePubSubAsync(string name, PubSubDescriptor options, CancellationToken cancellationToken)
     {
-        await Commands.CreatePubSub(name, new()
+        await Commands.CreatePubSubAsync(name, new()
         {
             Project = options.Project,
             Scopes = options.Scopes,
@@ -182,15 +182,15 @@ public class CliCatalystProvisioner : CatalystProvisioner
 
         // `pubsub create` also creates the fronting component, and is refused when a component of that name
         // already exists. --ignore-if-exists swallows that, so confirm the broker is really there.
-        if (!await PubSubExists(name, options.Project, cancellationToken))
+        if (!await PubSubExistsAsync(name, options.Project, cancellationToken))
         {
             throw CollisionException("pubsub", name, options.Project);
         }
     }
 
-    public async Task CreateKvStore(string name, KvStoreDescriptor options, CancellationToken cancellationToken)
+    public async Task CreateKvStoreAsync(string name, KvStoreDescriptor options, CancellationToken cancellationToken)
     {
-        await Commands.CreateKvStore(name, new()
+        await Commands.CreateKvStoreAsync(name, new()
         {
             Project = options.Project,
             Scopes = options.Scopes,
@@ -198,17 +198,17 @@ public class CliCatalystProvisioner : CatalystProvisioner
 
         // `kv create` also creates the fronting component, and is refused when a component of that name
         // already exists. --ignore-if-exists swallows that, so confirm the store is really there.
-        if (!await KvStoreExists(name, options.Project, cancellationToken))
+        if (!await KvStoreExistsAsync(name, options.Project, cancellationToken))
         {
             throw CollisionException("kv", name, options.Project);
         }
     }
 
-    public Task<bool> KvStoreExists(string name, string project, CancellationToken ct)
-        => Commands.KvStoreExists(name, project, ct);
+    public Task<bool> KvStoreExistsAsync(string name, string projectName, CancellationToken cancellationToken)
+        => Commands.KvStoreExistsAsync(name, projectName, cancellationToken);
 
-    public Task<bool> PubSubExists(string name, string project, CancellationToken ct)
-        => Commands.PubSubExists(name, project, ct);
+    public Task<bool> PubSubExistsAsync(string name, string projectName, CancellationToken cancellationToken)
+        => Commands.PubSubExistsAsync(name, projectName, cancellationToken);
 
     private static CatalystCliException CollisionException(string noun, string name, string project)
     {

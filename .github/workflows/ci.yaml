@@ -34,8 +34,16 @@ jobs:
         with:
           dotnet-version: 10.*.*
 
+      # Analyzers run inside this build, and Directory.Build.props makes a warning fatal for the shipped package,
+      # so a new CA/IDE violation in Hosting.Catalyst fails here rather than drifting in unnoticed.
       - name: "Build"
         run: dotnet build
+
+      # The formatting rules dotnet build does not enforce (whitespace, import order, final newline, charset).
+      # ubuntu only: .gitattributes pins the working tree to LF, so the verdict is the same on either runner.
+      - name: "Format check"
+        if: matrix.os == 'ubuntu-latest'
+        run: dotnet format --verify-no-changes --no-restore
 
       - name: "Unit tests"
         run: dotnet test tests/Hosting.Catalyst.Tests --no-build

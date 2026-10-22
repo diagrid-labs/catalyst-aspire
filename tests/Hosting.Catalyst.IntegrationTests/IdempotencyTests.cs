@@ -33,13 +33,13 @@ public class IdempotencyTests
         var provisioner = new CliCatalystProvisioner();
         var ct = CancellationToken.None;
 
-        await provisioner.CreateProject("demo", new(), ct);
-        await provisioner.CreateApp("api", "demo", ct);
-        var app = await provisioner.GetAppDetails("api", "demo", ct);
+        await provisioner.CreateProjectAsync("demo", new(), ct);
+        await provisioner.CreateAppAsync("api", "demo", ct);
+        var app = await provisioner.GetAppDetailsAsync("api", "demo", ct);
         Assert.Equal("diagrid://t", app.ApiToken);
-        await provisioner.CreatePubSub("ps", new() { Project = "demo" }, ct);
-        await provisioner.CreateKvStore("kv", new() { Project = "demo" }, ct);
-        await provisioner.UpsertComponent(new()
+        await provisioner.CreatePubSubAsync("ps", new() { Project = "demo" }, ct);
+        await provisioner.CreateKvStoreAsync("kv", new() { Project = "demo" }, ct);
+        await provisioner.UpsertComponentAsync(new()
         {
             Name = "store",
             Type = "state.in-memory",
@@ -48,7 +48,7 @@ public class IdempotencyTests
 
         if (includeSubscription)
         {
-            await provisioner.UpsertSubscription("demo",
+            await provisioner.UpsertSubscriptionAsync("demo",
                 new() { Name = "sub", Component = "ps", Topic = "t", Route = "/r" }, ct);
         }
     }
@@ -105,7 +105,7 @@ public class IdempotencyTests
         await ProvisionAsync();
 
         // project create names the project positionally; no other provisioning call may rely on a current
-        // project having been selected with `project use` (this driver never calls Init or UseProject).
+        // project having been selected with `project use` (this driver never calls InitializeAsync or UseProjectAsync).
         Assert.All(fake.Invocations.Where(i => i[0] != "project"), i => Assert.Contains("--project", i));
         Assert.All(fake.Invocations, i => Assert.Equal("--no-color=true", i[^1]));
     }
@@ -130,7 +130,7 @@ public class IdempotencyTests
         fake.SetScenario(new Scenario { Responses = [new() { ExitCode = 1, StdErr = "Error: boom" }] });
 
         await Assert.ThrowsAsync<CatalystCliException>(
-            () => new CliCatalystProvisioner().CreateApp("api", "demo", default));
+            () => new CliCatalystProvisioner().CreateAppAsync("api", "demo", default));
     }
 
     [Fact(Timeout = 30_000)]
@@ -140,7 +140,7 @@ public class IdempotencyTests
         fake.SetScenario(new Scenario { Responses = [new() { ExitCode = 1, StdErr = "Error: boom" }] });
 
         await Assert.ThrowsAsync<CatalystCliException>(
-            () => new CliCatalystProvisioner().UpsertSubscription("demo",
+            () => new CliCatalystProvisioner().UpsertSubscriptionAsync("demo",
                 new() { Name = "sub", Component = "ps", Topic = "t", Route = "/r" }, default));
     }
 }

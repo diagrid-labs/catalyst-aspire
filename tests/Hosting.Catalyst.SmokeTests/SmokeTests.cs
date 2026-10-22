@@ -42,7 +42,7 @@ public class SmokeTests
         {
             // The USE_CATALYST=true AppHost wiring (test-api app, statestore, pubsub, subscription), plus an agent.
             var builder = DistributedApplication.CreateBuilder(["USE_CATALYST=true"]);
-            DemoWiring.Configure<FakeApi>(builder, DemoWiring.UseCatalyst(builder), name);
+            DemoWiring.Configure<FakeApi>(builder, DemoWiring.UseCatalystAsync(builder), name);
             var catalyst = builder.Resources.OfType<CatalystProject>().Single();
             Assert.Equal(name, catalyst.ProjectName);
             builder.AddExecutable("my-agent", "dotnet", ".").WithCatalystAgent();
@@ -52,7 +52,7 @@ public class SmokeTests
                 NullLogger<ResourceNotificationService>.Instance, new HostLifetimeStub(), new EmptyServiceProvider(), loggers);
             var provisioner = new CliCatalystProvisioner();
             await new CatalystLifecycleHandler(catalyst, loggers, notifications, provisioner)
-                .ProvisionCatalyst(CancellationToken.None);
+                .ProvisionCatalystAsync(CancellationToken.None);
 
             // The DAPR_* variables are built from exactly these values.
             Assert.False(string.IsNullOrWhiteSpace(await catalyst.HttpEndpoint.Task), "DAPR_HTTP_ENDPOINT would be empty");
@@ -64,9 +64,9 @@ public class SmokeTests
                 Assert.False(string.IsNullOrWhiteSpace(details.ApiToken), $"DAPR_API_TOKEN would be empty for {resource.Name}");
             }
 
-            Assert.NotNull(await provisioner.TryGetProjectDetails(name, CancellationToken.None));
-            Assert.True(await provisioner.KvStoreExists("statestore", name, CancellationToken.None), "statestore missing");
-            Assert.True(await provisioner.PubSubExists("pubsub", name, CancellationToken.None), "pubsub missing");
+            Assert.NotNull(await provisioner.TryGetProjectDetailsAsync(name, CancellationToken.None));
+            Assert.True(await provisioner.KvStoreExistsAsync("statestore", name, CancellationToken.None), "statestore missing");
+            Assert.True(await provisioner.PubSubExistsAsync("pubsub", name, CancellationToken.None), "pubsub missing");
         }
         finally
         {

@@ -1,13 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Diagrid.Aspire.Hosting.Catalyst.Cli.Options;
 using Diagrid.Aspire.Hosting.Catalyst.Cli.Output;
 using Diagrid.Aspire.Hosting.Catalyst.Model;
+using Microsoft.Extensions.Logging;
 
 namespace Diagrid.Aspire.Hosting.Catalyst.Cli;
 
@@ -48,7 +50,7 @@ internal static class Commands
     ///     mode. An empty scope list is sent as <c>[]</c>: that convention is verified for <c>component update --scopes</c>
     ///     (documented as "Use [] for clearing up scopes") but only ASSUMED for <c>subscription update --scopes</c>, which
     ///     documents no such convention. Unreachable from the public API today (<c>WithSubscription</c> always scopes to
-    ///     the app), but reachable by a third party calling <c>UpsertSubscription</c>. The bulk count and duration are sent only when declared: the
+    ///     the app), but reachable by a third party calling <c>UpsertSubscriptionAsync</c>. The bulk count and duration are sent only when declared: the
     ///     CLI offers no way to unset them.
     /// </summary>
     internal static string[] BuildUpdateSubscriptionArgs(string name, CreateSubscriptionOptions options)
@@ -68,7 +70,7 @@ internal static class Commands
         return arguments.ToArray();
     }
 
-    public static async Task UpdateSubscription(
+    public static async Task UpdateSubscriptionAsync(
         string name,
         CreateSubscriptionOptions options,
         CancellationToken cancellationToken
@@ -87,7 +89,7 @@ internal static class Commands
     ///     Whether the subscription exists, by the exit code of <c>subscription get</c> alone. The CLI exits 1 for every
     ///     error, so a network or auth failure reads as "absent" here; the create that follows then fails loudly.
     /// </summary>
-    public static async Task<bool> SubscriptionExists(
+    public static async Task<bool> SubscriptionExistsAsync(
         string name,
         string projectName,
         CancellationToken cancellationToken = default
@@ -97,7 +99,7 @@ internal static class Commands
         return result.ExitCode == 0;
     }
 
-    private static void AddBulkTuningArguments(IList<string> arguments, CreateSubscriptionOptions options)
+    private static void AddBulkTuningArguments(List<string> arguments, CreateSubscriptionOptions options)
     {
         AddOptionalIntArgument(arguments, "--bulk-max-messages-count", options.BulkMaxMessagesCount);
 
@@ -108,7 +110,10 @@ internal static class Commands
         }
     }
 
-    /// <summary>Formats as a Go duration (<c>2s</c>, <c>1m30s</c>, <c>250ms</c>, <c>1h</c>): the CLI rejects <c>00:00:02</c>.</summary>
+    /// <summary>
+    /// Formats as a Go duration (<c>2s</c>, <c>1m30s</c>, <c>1h</c>, <c>0.25s</c>): the CLI rejects <c>00:00:02</c>.
+    /// Sub-second values are written as a fraction of a second, never with a <c>ms</c> unit.
+    /// </summary>
     internal static string FormatGoDuration(TimeSpan duration)
     {
         if (duration < TimeSpan.Zero)
@@ -116,7 +121,7 @@ internal static class Commands
             throw new ArgumentOutOfRangeException(nameof(duration), duration, "A bulk await duration cannot be negative.");
         }
 
-        var totalMilliseconds = (long) Math.Round(duration.TotalMilliseconds);
+        var totalMilliseconds = (long)Math.Round(duration.TotalMilliseconds);
 
         if (totalMilliseconds == 0)
         {
@@ -127,21 +132,33 @@ internal static class Commands
         var minutes = totalMilliseconds / 60_000 % 60;
         var seconds = totalMilliseconds / 1000 % 60;
         var milliseconds = totalMilliseconds % 1000;
-        var text = new System.Text.StringBuilder();
+        var text = new StringBuilder();
 
-        if (hours > 0) text.Append(hours).Append('h');
-        if (minutes > 0) text.Append(minutes).Append('m');
+        if (hours > 0)
+        {
+            text.Append(hours).Append('h');
+        }
+
+        if (minutes > 0)
+        {
+            text.Append(minutes).Append('m');
+        }
+
         if (seconds > 0 || milliseconds > 0)
         {
             text.Append(seconds);
-            if (milliseconds > 0) text.Append('.').Append(milliseconds.ToString("000", System.Globalization.CultureInfo.InvariantCulture).TrimEnd('0'));
+            if (milliseconds > 0)
+            {
+                text.Append('.').Append(milliseconds.ToString("000", CultureInfo.InvariantCulture).TrimEnd('0'));
+            }
+
             text.Append('s');
         }
 
         return text.ToString();
     }
 
-    public static async Task CreateSubscription(
+    public static async Task CreateSubscriptionAsync(
         string name,
         CreateSubscriptionOptions options,
         CancellationToken cancellationToken
@@ -156,7 +173,7 @@ internal static class Commands
     internal static string[] BuildUseCatalystArgs() => ["product", "use", "catalyst"];
 
     /// <summary>Best-effort courtesy: every other call passes --project, so nothing depends on this.</summary>
-    public static async Task UseCatalyst(CancellationToken cancellationToken)
+    public static async Task UseCatalystAsync(CancellationToken cancellationToken)
     {
         await ProcessRunner.RunAsync(BuildUseCatalystArgs(), ReadTimeout, cancellationToken);
     }
@@ -168,7 +185,7 @@ internal static class Commands
     /// Fails with an install message when the CLI is missing, and an upgrade message when it is below the floor.
     /// Fails OPEN (a warning) when the version cannot be read: the check only improves an error message.
     /// </summary>
-    public static async Task EnsureSupportedVersion(ILogger logger, CancellationToken cancellationToken)
+    public static async Task EnsureSupportedVersionAsync(ILogger logger, CancellationToken cancellationToken)
     {
         var arguments = BuildVersionArgs();
         CliResult result;
@@ -188,7 +205,7 @@ internal static class Commands
             return;
         }
 
-        if (!CatalystCli.EnsureSupportedVersion(arguments, result.StdOut))
+        if (!CatalystCli.EnsureSupportedVersionAsync(arguments, result.StdOut))
         {
             logger.LogWarning("{Message}", CatalystCli.UnreadableVersionWarning("'diagrid version' printed no recognisable 'Version:' line"));
         }
@@ -197,7 +214,7 @@ internal static class Commands
     internal static string[] BuildWhoamiArgs() => ["whoami"];
 
     /// <summary>Fails with a 'diagrid login' message when the CLI has no signed-in user.</summary>
-    public static async Task EnsureLoggedIn(CancellationToken cancellationToken)
+    public static async Task EnsureLoggedInAsync(CancellationToken cancellationToken)
     {
         var arguments = BuildWhoamiArgs();
         var result = await ProcessRunner.RunAsync(arguments, ReadTimeout, cancellationToken);
@@ -240,7 +257,7 @@ internal static class Commands
         return arguments.ToArray();
     }
 
-    public static async Task CreateProject(
+    public static async Task CreateProjectAsync(
         string projectName,
         CreateProjectOptions? options = null,
         CancellationToken cancellationToken = default
@@ -255,7 +272,7 @@ internal static class Commands
     internal static string[] BuildUseProjectArgs(string projectName) => ["project", "use", projectName];
 
     /// <summary>Best-effort courtesy: every other call passes --project, so nothing depends on this.</summary>
-    public static async Task UseProject(string projectName, CancellationToken cancellationToken)
+    public static async Task UseProjectAsync(string projectName, CancellationToken cancellationToken)
     {
         await ProcessRunner.RunAsync(BuildUseProjectArgs(projectName), ReadTimeout, cancellationToken);
     }
@@ -263,7 +280,7 @@ internal static class Commands
     internal static string[] BuildGetProjectArgs(string projectName)
         => ["project", "get", projectName, "--output", "json"];
 
-    public static async Task<CliProjectDetails> GetProjectDetails(string projectName,
+    public static async Task<CliProjectDetails> GetProjectDetailsAsync(string projectName,
         CancellationToken cancellationToken)
     {
         var arguments = BuildGetProjectArgs(projectName);
@@ -284,7 +301,7 @@ internal static class Commands
     internal static string[] BuildGetIdentityArgs(IdentityKind kind, string name, string project)
         => [Noun(kind), "get", name, "--project", project, "--output", "json"];
 
-    public static async Task<CliIdentityDetails> GetIdentityDetails(
+    public static async Task<CliIdentityDetails> GetIdentityDetailsAsync(
         IdentityKind kind,
         string name,
         string project,
@@ -338,7 +355,7 @@ internal static class Commands
         return arguments.ToArray();
     }
 
-    public static async Task CreateIdentity(
+    public static async Task CreateIdentityAsync(
         IdentityKind kind,
         string name,
         CreateIdentityOptions options,
@@ -375,7 +392,7 @@ internal static class Commands
         return arguments.ToArray();
     }
 
-    public static async Task CreateComponent(
+    public static async Task CreateComponentAsync(
         ComponentDescriptor descriptor,
         CreateComponentOptions options,
         CancellationToken cancellationToken = default
@@ -411,7 +428,7 @@ internal static class Commands
         return arguments.ToArray();
     }
 
-    public static async Task UpdateComponent(
+    public static async Task UpdateComponentAsync(
         ComponentDescriptor descriptor,
         CreateComponentOptions options,
         CancellationToken cancellationToken = default
@@ -440,7 +457,7 @@ internal static class Commands
         return arguments.ToArray();
     }
 
-    public static async Task CreatePubSub(
+    public static async Task CreatePubSubAsync(
         string pubsubName,
         CreatePubSubOptions options,
         CancellationToken cancellationToken = default
@@ -469,7 +486,7 @@ internal static class Commands
         return arguments.ToArray();
     }
 
-    public static async Task CreateKvStore(
+    public static async Task CreateKvStoreAsync(
         string kvStoreName,
         CreateKvStoreOptions options,
         CancellationToken cancellationToken = default
@@ -488,7 +505,7 @@ internal static class Commands
         => ["pubsub", "get", pubsubName, "--project", projectName];
 
     /// <summary>Whether the KV store exists, by the exit code of <c>kv get</c> alone (no output parsing).</summary>
-    public static async Task<bool> KvStoreExists(
+    public static async Task<bool> KvStoreExistsAsync(
         string kvStoreName,
         string projectName,
         CancellationToken cancellationToken = default
@@ -504,7 +521,7 @@ internal static class Commands
     }
 
     /// <summary>Whether the pub/sub broker exists, by the exit code of <c>pubsub get</c> alone (no output parsing).</summary>
-    public static async Task<bool> PubSubExists(
+    public static async Task<bool> PubSubExistsAsync(
         string pubsubName,
         string projectName,
         CancellationToken cancellationToken = default
@@ -541,16 +558,16 @@ internal static class Commands
         }
     }
 
-    private static void AddOptionalArgument(IList<string> arguments, string flag, string? value)
+    private static void AddOptionalArgument(List<string> arguments, string flag, string? value)
     {
-        if (! string.IsNullOrWhiteSpace(value))
+        if (!string.IsNullOrWhiteSpace(value))
         {
             arguments.Add(flag);
             arguments.Add(value);
         }
     }
 
-    private static void AddFlagArgument(IList<string> arguments, string flag, bool condition)
+    private static void AddFlagArgument(List<string> arguments, string flag, bool condition)
     {
         if (condition)
         {
@@ -558,9 +575,12 @@ internal static class Commands
         }
     }
 
-    private static void AddRepeatedArgument(IList<string> arguments, string flag, IEnumerable<string>? values)
+    private static void AddRepeatedArgument(List<string> arguments, string flag, IEnumerable<string>? values)
     {
-        if (values is null) return;
+        if (values is null)
+        {
+            return;
+        }
 
         foreach (var value in values)
         {
@@ -569,9 +589,12 @@ internal static class Commands
         }
     }
 
-    private static void AddKeyValueArguments(IList<string> arguments, string flag, IDictionary<string, string>? values)
+    private static void AddKeyValueArguments(List<string> arguments, string flag, IDictionary<string, string>? values)
     {
-        if (values is null) return;
+        if (values is null)
+        {
+            return;
+        }
 
         foreach (var pair in values)
         {
@@ -580,30 +603,33 @@ internal static class Commands
         }
     }
 
-    private static void AddOptionalIntArgument(IList<string> arguments, string flag, int? value)
+    private static void AddOptionalIntArgument(List<string> arguments, string flag, int? value)
     {
         if (value.HasValue)
         {
             arguments.Add(flag);
-            arguments.Add(value.Value.ToString());
+            arguments.Add(value.Value.ToString(CultureInfo.InvariantCulture));
         }
     }
 
     /// <summary>Each pair is ONE argv entry, so an embedded '=' (connection strings, base64) survives.</summary>
-    private static void AddMetadataArguments(IList<string> arguments, ComponentDescriptor descriptor)
+    private static void AddMetadataArguments(List<string> arguments, ComponentDescriptor descriptor)
     {
         var hasMetadata = false;
 
         foreach (var pair in descriptor.Metadata)
         {
-            if (pair.Value is null) continue;
+            if (pair.Value is null)
+            {
+                continue;
+            }
 
             hasMetadata = true;
             arguments.Add("--metadata");
             arguments.Add($"{pair.Key}={FormatMetadataValue(pair.Value)}");
         }
 
-        if (! hasMetadata)
+        if (!hasMetadata)
         {
             throw new ArgumentException("Component metadata required", nameof(descriptor));
         }
@@ -618,11 +644,11 @@ internal static class Commands
         JsonElement { ValueKind: JsonValueKind.False } => "false",
         JsonElement { ValueKind: JsonValueKind.String } e => e.GetString() ?? string.Empty,
         JsonElement e => e.GetRawText(),
-        IFormattable f => f.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
+        IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
         _ => value.ToString() ?? string.Empty,
     };
 
-    private static void AddScopesArgument(IList<string> arguments, IList<string> scopes)
+    private static void AddScopesArgument(List<string> arguments, IList<string> scopes)
     {
         if (scopes.Count > 0)
         {
