@@ -7,4 +7,5 @@ public record CreateKvStoreOptions
     public required string Project { get; init; }
     public IList<string> Scopes { get; init; } = [];
     public bool Wait { get; init; } = true;
+    public bool IgnoreIfExists { get; init; } = true;
 }

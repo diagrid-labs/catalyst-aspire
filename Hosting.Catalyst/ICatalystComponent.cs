@@ -2,15 +2,15 @@ using System.Collections.Generic;
 
 namespace Diagrid.Aspire.Hosting.Catalyst;
 
-public interface CatalystComponent
+public interface ICatalystComponent
 {
 }
 
-public interface CatalystComponent<MetadataType> : CatalystComponent
+public interface ICatalystComponent<TMetadata> : ICatalystComponent
 {
     public string Type { get; }
 
     public IList<string> Scopes { get; }
 
-    public MetadataType Metadata { get; }
+    public TMetadata Metadata { get; }
 }

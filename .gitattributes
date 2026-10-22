@@ -1,0 +1,8 @@
+# The index already stores every text file with LF. Pin the WORKING tree to LF too, so a Windows checkout
+# matches .editorconfig's end_of_line = lf and `dotnet format` can be used as a gate on every platform.
+* text=auto eol=lf
+
+# Binary: never touch.
+*.png binary
+*.ico binary
+*.snk binary

@@ -1,0 +1,212 @@
+name: "Nightly (real Catalyst)"
+
+# Runs the opt-in smoke suite and re-captures the CLI fixtures against a real Catalyst account.
+# It is NOT a required check and never gates a merge: a failure opens an issue, fixture drift opens a PR.
+# Skipped entirely when the CATALYST_API_KEY secret is absent (forks, or a repo without the account).
+#
+# This repo is public and the secret is live, so:
+#  - the API key is exposed to the login step only, never to the job as a whole or to third-party actions;
+#  - third-party actions are pinned to commit SHAs;
+#  - captured fixtures are scanned fail-closed BEFORE anything is committed or pushed;
+#  - nothing prints account identity (no `diagrid whoami`).
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+# One run at a time against the account.
+concurrency:
+  group: nightly-catalyst
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  nightly:
+    name: "Smoke tests and fixture capture"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # A boolean only: the secret itself is not in the job environment.
+      HAS_CATALYST_KEY: ${{ secrets.CATALYST_API_KEY != '' }}
+
+    steps:
+      - name: "Gate on the API key"
+        id: gate
+        run: |
+          if [ "$HAS_CATALYST_KEY" != "true" ]; then
+            echo "CATALYST_API_KEY is not set; skipping the nightly run."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: "Checkout"
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: "Setup dotnet"
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+        with:
+          dotnet-version: 10.*.*
+
+      - name: "Install the diagrid CLI"
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          brew install diagridio/tap/diagrid
+          diagrid version --no-color=true
+
+      # Build first, with the real HOME and no credential in reach.
+      - name: "Build"
+        if: steps.gate.outputs.enabled == 'true'
+        run: dotnet build tests/Hosting.Catalyst.SmokeTests
+
+      # Every step that touches the account (login, smoke, capture, schemas, sweep) runs with HOME and
+      # XDG_CONFIG_HOME pointing at one throwaway directory. `diagrid login` persists its credential under the
+      # config dir, so wherever the CLI keeps it, it lands in there, and "Remove stored credentials" below deletes
+      # that directory wholesale and then PROVES the credential is gone. No guessing at the CLI's config path.
+      #
+      # The key itself is only in this step's environment.
+      - name: "Log in"
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          CATALYST_API_KEY: ${{ secrets.CATALYST_API_KEY }}
+          HOME: ${{ runner.temp }}/catalyst-home
+          XDG_CONFIG_HOME: ${{ runner.temp }}/catalyst-home/.config
+        run: |
+          mkdir -p "$HOME" "$XDG_CONFIG_HOME"
+          diagrid login --api-key "$CATALYST_API_KEY" --no-browser > /dev/null
+
+      # dotnet test reports a skip as success, so assert from the TRX that tests actually passed and none skipped.
+      - name: "Smoke tests"
+        id: smoke
+        if: steps.gate.outputs.enabled == 'true'
+        continue-on-error: true
+        env:
+          CATALYST_SMOKE_ENABLED: "true"
+          HOME: ${{ runner.temp }}/catalyst-home
+          XDG_CONFIG_HOME: ${{ runner.temp }}/catalyst-home/.config
+        run: |
+          dotnet test tests/Hosting.Catalyst.SmokeTests --no-build --filter "FullyQualifiedName~SmokeTests.SmokeTests" \
+            --logger "trx;LogFileName=smoke.trx" --results-directory "$RUNNER_TEMP/smoke-results"
+          bash .github/scripts/assert-tests-ran.sh "$RUNNER_TEMP/smoke-results"
+
+      - name: "Capture fixtures"
+        id: capture
+        if: steps.gate.outputs.enabled == 'true'
+        continue-on-error: true
+        env:
+          CATALYST_CAPTURE_FIXTURES_DIR: ${{ github.workspace }}/tests/fixtures
+          HOME: ${{ runner.temp }}/catalyst-home
+          XDG_CONFIG_HOME: ${{ runner.temp }}/catalyst-home/.config
+        run: |
+          dotnet test tests/Hosting.Catalyst.SmokeTests --no-build --filter "FullyQualifiedName~FixtureCapture" \
+            --logger "trx;LogFileName=capture.trx" --results-directory "$RUNNER_TEMP/capture-results"
+          bash .github/scripts/assert-tests-ran.sh "$RUNNER_TEMP/capture-results"
+
+      # The embedded OpenAPI spec and the help text need no project; a change in either is flag or field drift.
+      - name: "Capture CLI schemas and help"
+        id: schemas
+        if: steps.gate.outputs.enabled == 'true'
+        continue-on-error: true
+        env:
+          HOME: ${{ runner.temp }}/catalyst-home
+          XDG_CONFIG_HOME: ${{ runner.temp }}/catalyst-home/.config
+        run: |
+          mkdir -p tests/fixtures/cli
+          diagrid app schema --output json --no-color=true > tests/fixtures/cli/app-schema.json
+          diagrid agent schema --output json --no-color=true > tests/fixtures/cli/agent-schema.json
+          {
+            for cmd in "project create" "project get" "project delete" "app create" "app get" "agent create" "agent get" \
+                       "appid get" "component create" "pubsub create" "kv create" "subscription create" "subscription update"; do
+              echo "## diagrid $cmd --help"
+              diagrid $cmd --help --no-color=true
+              echo
+            done
+          } > tests/fixtures/cli/help.txt
+
+      # Fail-closed: if anything credential-shaped survived normalisation, the job stops here and no later step
+      # (including create-pull-request, which pushes to a public repo) runs.
+      - name: "Scan captured fixtures for secrets"
+        id: scan
+        if: steps.gate.outputs.enabled == 'true'
+        run: bash .github/scripts/scan-fixtures.sh tests/fixtures
+
+      # POSITIVE CONTROL for the credential-removal proof below: the identical authenticated read must SUCCEED while
+      # the credential still exists. Without it, "the read fails after removal" proves nothing (the previous probe
+      # failed with a usage error either way). Also proves that login worked before the sweep relies on it.
+      - name: "Positive control (authenticated read works)"
+        id: control
+        if: always() && steps.gate.outputs.enabled == 'true'
+        env:
+          HOME: ${{ runner.temp }}/catalyst-home
+          XDG_CONFIG_HOME: ${{ runner.temp }}/catalyst-home/.config
+        run: bash .github/scripts/probe-auth.sh expect-authenticated
+
+      # Backstop for a runner killed mid-test. Fails loudly (no continue-on-error) and runs even after a failure.
+      # Runs BEFORE the credential is removed (it needs it) and before the PR step, whose condition therefore must not
+      # depend on success(), or a sweep failure would suppress the drift PR.
+      - name: "Sweep leaked smoke projects"
+        id: sweep
+        if: always() && steps.gate.outputs.enabled == 'true'
+        env:
+          HOME: ${{ runner.temp }}/catalyst-home
+          XDG_CONFIG_HOME: ${{ runner.temp }}/catalyst-home/.config
+        run: bash .github/scripts/sweep-smoke-projects.sh
+
+      # create-pull-request below carries a contents:write token and the login persisted a credential on disk, so
+      # remove it and PROVE it is gone: delete the isolated HOME wholesale, then require an authenticated read to FAIL
+      # both from that (now empty) HOME and from the runner's real HOME, where later steps run. A failed read could
+      # also be a network error, so this is strong evidence rather than a proof; the deletion is what removes it.
+      - name: "Remove stored credentials"
+        id: logout
+        if: always() && steps.gate.outputs.enabled == 'true'
+        env:
+          CONTROL_OUTCOME: ${{ steps.control.outcome }}
+        run: |
+          iso="$RUNNER_TEMP/catalyst-home"
+          # Observed locally: the CLI also writes .diagrid/config.json (an org id) into the CURRENT directory, so delete
+          # the workspace copy too; the proof below then covers whichever location the credential used.
+          rm -rf "$iso" "$GITHUB_WORKSPACE/.diagrid"
+          mkdir -p "$iso/.config"
+          # The negative probe is only meaningful if the same probe succeeded while the credential existed.
+          if [ "$CONTROL_OUTCOME" != "success" ]; then
+            echo "::error::the positive control did not succeed ($CONTROL_OUTCOME), so removal cannot be verified."
+            exit 1
+          fi
+          # Each probe must fail WITH an unauthenticated signature, not merely fail (timeout 60 inside the script).
+          HOME="$iso" XDG_CONFIG_HOME="$iso/.config" bash .github/scripts/probe-auth.sh expect-unauthenticated
+          bash .github/scripts/probe-auth.sh expect-unauthenticated
+          rm -rf "$iso"
+          echo "Credential removed and verified: the control succeeded earlier; the same read now fails as unauthenticated from both homes."
+
+      # Not success(): a failed smoke test or sweep must not suppress the drift PR. Only the secret scan and the verified credential removal gate it.
+      - name: "Open a PR when fixtures drifted"
+        if: ${{ !cancelled() && steps.gate.outputs.enabled == 'true' && steps.scan.outcome == 'success' && steps.logout.outcome == 'success' }}
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7.0.11
+        with:
+          branch: automation/fixture-drift
+          add-paths: tests/fixtures
+          commit-message: "test: re-capture fixtures from the diagrid CLI"
+          title: "test: fixture drift from the diagrid CLI"
+          body: |
+            The nightly run re-captured `tests/fixtures` from a real diagrid CLI and they differ from what is committed.
+            The diff is the drift signal: read it, then fix the integration or accept the new shape.
+            Tokens, names, timestamps and ids are normalised on capture and scanned for secrets before this PR, so a diff here is a real change.
+
+      - name: "Open an issue when the nightly fails"
+        if: always() && steps.gate.outputs.enabled == 'true' && (steps.smoke.outcome == 'failure' || steps.capture.outcome == 'failure' || steps.schemas.outcome == 'failure' || steps.scan.outcome == 'failure' || steps.sweep.outcome == 'failure' || steps.control.outcome == 'failure' || steps.logout.outcome == 'failure')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Nightly Catalyst run failed ($(date -u +%Y-%m-%d))" \
+            --body "Smoke: ${{ steps.smoke.outcome }}. Fixture capture: ${{ steps.capture.outcome }}. Schemas: ${{ steps.schemas.outcome }}. Secret scan: ${{ steps.scan.outcome }}. Sweep: ${{ steps.sweep.outcome }}. Credential removal: ${{ steps.logout.outcome }}. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

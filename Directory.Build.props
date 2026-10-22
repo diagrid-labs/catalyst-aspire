@@ -1,0 +1,28 @@
+<Project>
+
+    <!--
+        Shared build settings. Without this file nothing enforced style, and the same question got two answers in
+        different files: _camelCase fields beside bare ones, [GeneratedRegex] beside new Regex(..., Compiled),
+        private methods suffixed Async beside a public API with none.
+    -->
+    <PropertyGroup>
+        <EnableNETAnalyzers>true</EnableNETAnalyzers>
+        <AnalysisMode>Recommended</AnalysisMode>
+        <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <!--
+        The shipped package is the strict one: a warning fails its build so the public surface cannot drift again.
+        Test and demo projects stay on warnings, because a noisy analyzer should never block running the tests.
+    -->
+    <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Hosting.Catalyst'">
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <!-- NU1902/NU1903: transitive MessagePack advisory from Aspire.Hosting.AppHost; not ours to bump. -->
+        <WarningsNotAsErrors>NU1902;NU1903</WarningsNotAsErrors>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <!-- CS1591 (missing XML doc on a public member) is a separate cleanup; documented members are the norm here. -->
+        <NoWarn>$(NoWarn);CS1591</NoWarn>
+    </PropertyGroup>
+
+</Project>

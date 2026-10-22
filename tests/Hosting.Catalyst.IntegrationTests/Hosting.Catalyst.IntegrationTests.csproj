@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Hosting.Catalyst\Hosting.Catalyst.csproj" />
+    <!-- Build-order only. The fake must NOT be copied into this project's output: on Windows a bare
+         process name resolves from the calling process's own directory first, which would bypass PATH. -->
+    <ProjectReference Include="..\FakeDiagrid\FakeDiagrid.csproj" ReferenceOutputAssembly="false" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\fixtures\*.json" Link="fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Share the scenario types by source, since the fake's assembly is not referenced. -->
+    <Compile Include="..\FakeDiagrid\Scenario.cs" Link="Scenario.cs" />
+  </ItemGroup>
+
+  <!-- Locate the fake by asking its own project where it builds, so the path follows -o, ArtifactsPath and
+       OutputPath overrides and never depends on a hand-written separator (a backslash is a literal filename
+       character on Linux). The directory is handed to the tests as assembly metadata. -->
+  <Target Name="EmbedFakeDiagridDir" BeforeTargets="GetAssemblyAttributes">
+    <MSBuild Projects="..\FakeDiagrid\FakeDiagrid.csproj" Targets="GetTargetPath" SkipNonexistentTargets="false">
+      <Output TaskParameter="TargetOutputs" ItemName="_FakeDiagridTarget" />
+    </MSBuild>
+    <PropertyGroup>
+      <_FakeDiagridDir>$([System.IO.Path]::GetDirectoryName('%(_FakeDiagridTarget.FullPath)'))</_FakeDiagridDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+        <_Parameter1>FakeDiagridDir</_Parameter1>
+        <_Parameter2>$(_FakeDiagridDir)</_Parameter2>
+      </AssemblyAttribute>
+    </ItemGroup>
+  </Target>
+
+</Project>

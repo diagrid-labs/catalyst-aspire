@@ -5,7 +5,7 @@ namespace Diagrid.Aspire.Hosting.Catalyst.ComponentSpec;
 
 // see: https://docs.diagrid.io/references/components-reference/pubsub/diagrid/
 
-public class DiagridPubSub : CatalystComponent<DiagridPubSubSpecMetadata>
+public class DiagridPubSub : ICatalystComponent<DiagridPubSubSpecMetadata>
 {
     public string Type => "pubsub.diagrid";
 

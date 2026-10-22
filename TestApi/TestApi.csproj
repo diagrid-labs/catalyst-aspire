@@ -8,6 +8,8 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="Dapr.AspNetCore" Version="1.17.9" />
+      <PackageReference Include="Dapr.Workflow" Version="1.17.9" />
       <ProjectReference Include="..\ServiceDefaults\ServiceDefaults.csproj" />
     </ItemGroup>
 

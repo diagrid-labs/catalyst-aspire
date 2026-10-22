@@ -12,11 +12,12 @@ internal static class LogoPicker
 
         var logos = assembly.GetManifestResourceNames()
             .Where(name =>
-                name.Contains("Diagrid.Aspire.Hosting.Catalyst.Logo.")
-                && name.EndsWith(".txt"))
+                name.Contains("Diagrid.Aspire.Hosting.Catalyst.Logo.", StringComparison.Ordinal)
+                && name.EndsWith(".txt", StringComparison.Ordinal))
             .ToList();
 
-        var randomInt = Random.Shared.Next(logos.Count - 1);
+        // Next's upper bound is exclusive, so Count - 1 could never return the last logo: 005.txt never appeared.
+        var randomInt = Random.Shared.Next(logos.Count);
         var logoResourceName = logos[randomInt];
 
         var logoStream = assembly.GetManifestResourceStream(logoResourceName);

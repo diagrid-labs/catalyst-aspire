@@ -382,12 +382,10 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
-# VS Code files for those working on multiple tools
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+# VS Code files for those working on multiple tools.
+# The whole directory, not the usual "ignore all but settings/tasks/launch/extensions" split: nothing in
+# .vscode is shared in this repo, so the exceptions only invited someone's local setup in by accident.
+.vscode/
 *.code-workspace
 
 # Local History for Visual Studio Code
@@ -483,3 +481,18 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 nuget/
+
+##
+## Local tooling state. None of this belongs in a public repo.
+##
+
+# Diagrid CLI state, including the credentials written by `diagrid login`. This repo is public, so this one
+# is a security boundary rather than a tidiness preference. Never committed to date; keep it that way.
+.diagrid/
+
+# Claude Code session state and worktrees.
+.claude/
+
+# Specs, plans and working notes kept beside the code but not shipped with it. Root-scoped on purpose: a bare
+# `docs` pattern would also swallow a future Hosting.Catalyst/docs/ that someone did mean to commit.
+/docs/
