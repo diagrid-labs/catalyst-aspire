@@ -1,52 +1,93 @@
 name: "Release"
+
+# Publishing happens on ONE trigger: a published GitHub Release whose tag name is the bare package version
+# ("2.0.0", no "v" prefix). workflow_dispatch packs the same way but does NOT push -- it uploads the .nupkg as
+# an artifact so a release can be rehearsed. That split matters: the previous version of this workflow pushed
+# on both triggers, which is how 0.0.0-development reached nuget.org.
 on:
   workflow_dispatch:
   release:
     types: [ published ]
 
+permissions:
+  contents: read
+
 jobs:
-  
+
   package:
     name: "Package"
     runs-on: ubuntu-latest
-    
-    permissions:
-      contents: 'read'
-      id-token: 'write'
-      packages: 'write'
-    
+    timeout-minutes: 30
+
     steps:
 
-      - name: "Setup dotnet"
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: 10.*.*
-
+      # Checkout first: the later steps need the sources, and on a release event this resolves to the tagged commit.
+      # Actions are pinned by commit SHA, as in ci.yaml -- this job holds NUGET_API_KEY, so it is the last place
+      # that should float on a mutable tag.
       - name: "Checkout"
-        uses: actions/checkout@v2
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
 
-      - name: "Build Solution"
-        working-directory: ./
-        run: |
-          dotnet build
+      - name: "Setup dotnet"
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
+        with:
+          dotnet-version: 10.*.*
 
+      - name: "Build Solution"
+        run: dotnet build
+
+      # Nothing shipped without the suite that guards it. The same three suites CI runs, so a red main cannot
+      # become a published package. The account-backed smoke tests skip without CATALYST_SMOKE_ENABLED.
+      - name: "Unit tests"
+        run: dotnet test tests/Hosting.Catalyst.Tests --no-build
+
+      - name: "Integration tests"
+        run: dotnet test tests/Hosting.Catalyst.IntegrationTests --no-build
+
+      - name: "Smoke tests (account-backed tests must skip)"
+        run: dotnet test tests/Hosting.Catalyst.SmokeTests --no-build
+
+      # The tag name becomes the package version verbatim, so it is validated here rather than discovered on
+      # nuget.org: a version can never be republished, and a typo is permanent.
       - name: "Determine version"
         id: choose_version
         run: |
+          set -euo pipefail
           if [ "${{ github.event_name }}" = "release" ]; then
-            echo "version=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+            version="${{ github.event.release.tag_name }}"
+            if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+              echo "::error::Release tag '$version' is not a bare semver version. Tag releases as 2.0.0, not v2.0.0."
+              exit 1
+            fi
+            echo "publish=true" >> "$GITHUB_OUTPUT"
           else
-            echo "version=0.0.0-development" >> "$GITHUB_OUTPUT"
+            # A dry run. Named so it could never be mistaken for a real version if it ever escaped.
+            version="0.0.0-dryrun.$(git rev-parse --short HEAD)"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
           fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Packing version $version"
 
       - name: "Pack NuGet package"
         working-directory: ./Hosting.Catalyst
-        run: |
-          dotnet pack --configuration Release --output ./nupkg /p:PackageVersion=${{ steps.choose_version.outputs.version }}
+        run: dotnet pack --configuration Release --output ./nupkg /p:PackageVersion=${{ steps.choose_version.outputs.version }}
 
+      # Always produced, so a dispatch run leaves something inspectable instead of nothing.
+      - name: "Upload package artifact"
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: nupkg-${{ steps.choose_version.outputs.version }}
+          path: ./Hosting.Catalyst/nupkg/*.nupkg
+          if-no-files-found: error
+
+      # No --skip-duplicate: a version that already exists means this release was already published, and that
+      # should fail the job rather than pass silently and leave someone believing they shipped.
       - name: "Publish to NuGet.org"
+        if: steps.choose_version.outputs.publish == 'true'
         working-directory: ./Hosting.Catalyst
-        run: |
-          dotnet nuget push ./nupkg/*.nupkg --source "https://api.nuget.org/v3/index.json" --api-key ${{ secrets.NUGET_API_KEY }} --skip-duplicate
+        run: dotnet nuget push ./nupkg/*.nupkg --source "https://api.nuget.org/v3/index.json" --api-key ${{ secrets.NUGET_API_KEY }}
+
+      - name: "Dry run summary"
+        if: steps.choose_version.outputs.publish != 'true'
+        run: echo "::notice::Dry run. Packed ${{ steps.choose_version.outputs.version }} and uploaded it as an artifact; nothing was pushed to NuGet.org."

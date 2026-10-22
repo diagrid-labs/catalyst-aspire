@@ -12,6 +12,22 @@
         <PackageIcon>/catalyst-logo.png</PackageIcon>
         <PackageReadmeFile>readme.md</PackageReadmeFile>
         <RepositoryUrl>https://github.com/diagrid-labs/catalyst-aspire</RepositoryUrl>
+        <!--
+            Without an explicit Description, MSBuild packs the literal placeholder "Package Description".
+            Every version published so far (0.0.1 through 1.0.0) carries it on nuget.org.
+        -->
+        <Description>.NET Aspire hosting integration for Diagrid Catalyst. Declare a Catalyst project, apps, agents, managed KV stores and pub/sub brokers, components and subscriptions in your AppHost, and the integration provisions them through the Diagrid CLI when you run it. Built so that moving a Dapr OSS service to Catalyst needs no change to the service's own code.</Description>
+        <PackageProjectUrl>https://github.com/diagrid-labs/catalyst-aspire</PackageProjectUrl>
+        <PackageTags>aspire;dapr;diagrid;catalyst;distributed-applications;workflow;pubsub;statestore</PackageTags>
+        <!--
+            TODO: no licence is declared, so nuget.org shows "License not specified" and some organisations
+            will refuse the package outright. There is no LICENSE file in the repo and GitHub reports none, so
+            this is a decision for Diagrid rather than something to infer. Once chosen, add a LICENSE file and
+            one of:
+              <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+              <PackageLicenseFile>LICENSE</PackageLicenseFile>
+        -->
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     </PropertyGroup>
 
     <ItemGroup>

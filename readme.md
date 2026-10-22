@@ -228,6 +228,38 @@ If you need a component that does not have strong typing yet, you can always fal
 The example above will create an [http binding](https://docs.diagrid.io/references/catalyst/components-reference/bindings/http) with the `url` property set to `https://diagrid.io`.  The final array parameter with `["test-api"]` is where you can provide which appids to scope the component to.
 
 
+## How to Release
+
+The package is published to [NuGet.org](https://www.nuget.org/packages/Diagrid.Aspire.Hosting.Catalyst) by `.github/workflows/release.yaml`. There is one way to publish: **publish a GitHub Release**. The release's tag name becomes the package version verbatim.
+
+### Choosing the version
+
+Semantic versioning, and the tag is the bare version with **no `v` prefix** — `2.0.0`, not `v2.0.0`. The workflow rejects a tag that is not a bare semver version rather than publishing something malformed.
+
+| Change | Bump |
+| --- | --- |
+| Removing or renaming anything public, or changing a signature | Major |
+| New methods, options or overloads; new behavior behind a default | Minor |
+| Fixes that leave the public surface alone | Patch |
+
+Renaming `CatalystProvisioner` to `ICatalystProvisioner` and adding the `Async` suffix across the interface are breaking, so the release after `1.0.0` is `2.0.0`.
+
+### Releasing
+
+1. Merge to `main` and wait for CI to pass on it.
+2. Rehearse first. Run the **Release** workflow manually (`workflow_dispatch`): it builds, runs all three test suites, packs, and uploads the `.nupkg` as a build artifact **without pushing anything**. Download it and check the version, the dependencies and the readme that ships inside it.
+3. Draft a GitHub Release. Tag it `2.0.0`, targeting the commit on `main` you want to ship. Write the notes from the "What changed in this release" section above — breaking changes first, because that section is what tells someone whether the upgrade is safe.
+4. Publish the release. The workflow runs again on the tagged commit, re-runs the tests, packs with the tag as the version, and pushes to NuGet.org.
+5. Confirm the new version is listed on NuGet.org. It takes a few minutes to appear and be indexed.
+
+### Things worth knowing before you publish
+
+- **A published version is permanent.** NuGet does not allow republishing a version — a bad one can only be *unlisted*, and anyone who already referenced it keeps resolving it. This is why step 2 exists and why the workflow validates the tag.
+- **The push does not use `--skip-duplicate`.** If the version already exists the job fails, rather than going green and leaving you believing you shipped.
+- **Nothing publishes except a published release.** `workflow_dispatch` is pack-and-upload only. It used to push as well, which is how the placeholder version `0.0.0-development` reached NuGet.org.
+- **The release needs the `NUGET_API_KEY` secret** to be present and unexpired. NuGet.org API keys expire; a push failing with a 401 usually means the key needs regenerating.
+- **The package declares no licence.** NuGet.org shows "License not specified", and some organisations refuse such packages. Add a `LICENSE` file and the matching `PackageLicenseExpression` in `Hosting.Catalyst/Hosting.Catalyst.csproj` — there is a note in that file with the exact lines.
+
 ## Additional Resources
 
 See an example of this integration being used in the [Diagrid Catalyst Workflows demo](https://github.com/diagrid-labs/catalyst-order-workflow-dotnet).
