@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Aspire.Hosting.ApplicationModel;
@@ -15,6 +16,14 @@ internal sealed class CatalystLifecycleHandler(
     ICatalystProvisioner provisioner
 )
 {
+    /// <summary>The component type that fronts a Catalyst-managed KV store, and the metadata key naming the store.</summary>
+    internal const string ManagedStateStoreType = "state.diagrid";
+    internal const string ManagedStateInfraKey = "state";
+
+    /// <summary>The component type that fronts a Catalyst-managed pub/sub broker, and the key naming the broker.</summary>
+    internal const string ManagedPubSubType = "pubsub.diagrid";
+    internal const string ManagedPubSubInfraKey = "pubsub";
+
     internal const string CheckingCliState = "Checking Diagrid CLI";
     internal const string WaitingForProjectState = "Waiting for project";
     internal static readonly TimeSpan ProjectReadyTimeout = TimeSpan.FromMinutes(5);
@@ -258,6 +267,8 @@ internal sealed class CatalystLifecycleHandler(
             try
             {
                 await provisioner.CreatePubSubAsync(pair.Key, pair.Value, cancellationToken);
+                await EnsureManagedServiceComponentAsync(
+                    pair.Key, ManagedPubSubType, ManagedPubSubInfraKey, pair.Value.Scopes, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -283,6 +294,8 @@ internal sealed class CatalystLifecycleHandler(
             try
             {
                 await provisioner.CreateKvStoreAsync(pair.Key, pair.Value, cancellationToken);
+                await EnsureManagedServiceComponentAsync(
+                    pair.Key, ManagedStateStoreType, ManagedStateInfraKey, pair.Value.Scopes, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -302,6 +315,53 @@ internal sealed class CatalystLifecycleHandler(
                 throw;
             }
         }
+    }
+
+    /// <summary>
+    ///     Makes sure a declared managed service has a component named after it, which is how an app addresses it.
+    /// </summary>
+    /// <remarks>
+    ///     <c>kv create</c> / <c>pubsub create</c> normally create that component themselves, so this is usually
+    ///     a no-op that <c>--ignore-if-exists</c> absorbs. It is not a no-op when the service already existed
+    ///     WITHOUT one, and creating a project's first agent is exactly that case: the control plane's
+    ///     <c>EnsureAgentRegistry</c> and <c>ensureAgentPubsub</c> provision a managed KV store named
+    ///     <c>kvstore</c> and a managed broker named <c>pubsub</c> with <c>WithCreateComponent(false)</c> — the
+    ///     same two names <see cref="ResourceBuilderExtensions.SampleKvName"/> and
+    ///     <see cref="ResourceBuilderExtensions.SamplePubsubName"/> default to. A later create is then refused as
+    ///     a conflict, the CLI's <c>--ignore-if-exists</c> turns that into success, and the component is never
+    ///     made: provisioning goes green and the app fails at runtime with a missing component.
+    ///     <br /><br />
+    ///     Skipped when the AppHost declares its own component for the service: that one is reconciled by
+    ///     <see cref="EnsureComponentsAsync"/> with the developer's spec, and creating a default first would be
+    ///     a duplicate.
+    /// </remarks>
+    /// <param name="name">The managed service's name, which the component takes too.</param>
+    /// <param name="type">The fronting component's type.</param>
+    /// <param name="infraMetadataKey">The metadata key naming the managed service the component fronts.</param>
+    /// <param name="scopes">The service's scopes, carried to the component.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    private async Task EnsureManagedServiceComponentAsync(
+        string name,
+        string type,
+        string infraMetadataKey,
+        IList<string> scopes,
+        CancellationToken cancellationToken
+    )
+    {
+        if (catalystProject.Components.ContainsKey(name))
+        {
+            return;
+        }
+
+        var descriptor = new ComponentDescriptor
+        {
+            Name = name,
+            Type = type,
+            Scopes = scopes,
+            Metadata = new Dictionary<string, object?> { [infraMetadataKey] = name },
+        };
+
+        await provisioner.UpsertComponentAsync(descriptor, catalystProject.ProjectName, isManagedServiceComponent: false, cancellationToken);
     }
 
     private async Task EnsureComponentsAsync(CancellationToken cancellationToken)

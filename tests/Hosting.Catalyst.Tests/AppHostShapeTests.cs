@@ -84,17 +84,17 @@ public class AppHostShapeTests
         var (_, ossApi) = Build(false);
         var resources = OssSidecarResourcesDir(ossApi);
 
-        var ossState = ComponentNameIn(Path.Combine(resources, "statestore.yaml"));
+        var ossState = ComponentNameIn(Path.Combine(resources, "kvstore.yaml"));
         var ossPubSub = ComponentNameIn(Path.Combine(resources, "pubsub.yaml"));
 
-        Assert.Equal("statestore", ossState);
+        Assert.Equal("kvstore", ossState);
         Assert.Equal("pubsub", ossPubSub);
         Assert.Equal([ossState], catalyst.KvStores.Keys);
         Assert.Equal([ossPubSub], catalyst.PubSubs.Keys);
         Assert.Equal(ossPubSub, Assert.Single(catalyst.Subscriptions).Value.Component);
     }
 
-    // Each YAML file must declare the right component type for its name (a state store named "statestore").
+    // Each YAML file must declare the right component type for its name (a state store named "kvstore").
     // Mutation: swap the types in the two files.
     [Fact]
     public void The_oss_yaml_declares_a_state_store_and_a_pubsub()
@@ -102,7 +102,7 @@ public class AppHostShapeTests
         var (_, api) = Build(false);
         var resources = OssSidecarResourcesDir(api);
 
-        Assert.Contains("type: state.", File.ReadAllText(Path.Combine(resources, "statestore.yaml")), StringComparison.Ordinal);
+        Assert.Contains("type: state.", File.ReadAllText(Path.Combine(resources, "kvstore.yaml")), StringComparison.Ordinal);
         Assert.Contains("type: pubsub.", File.ReadAllText(Path.Combine(resources, "pubsub.yaml")), StringComparison.Ordinal);
     }
 
@@ -114,7 +114,7 @@ public class AppHostShapeTests
         var (catalystBuilder, _) = Build(true);
         var subscription = Assert.Single(catalystBuilder.Resources.OfType<CatalystProject>().Single().Subscriptions).Value;
 
-        Assert.Contains("const string StateStore = \"statestore\";", source, StringComparison.Ordinal);
+        Assert.Contains("const string StateStore = \"kvstore\";", source, StringComparison.Ordinal);
         Assert.Contains("const string PubSub = \"pubsub\";", source, StringComparison.Ordinal);
         Assert.Contains($"MapPost(\"{subscription.Route}\", ", source, StringComparison.Ordinal);
         Assert.Equal("orders", subscription.Topic);
@@ -122,7 +122,7 @@ public class AppHostShapeTests
 
         // The literals appear only in the constant declarations, so every call must go through the constants.
         // Mutation: PublishEventAsync("pubsub2", ...) or SaveStateAsync("statestore2", ...) with a literal.
-        foreach (var literal in new[] { "\"statestore\"", "\"pubsub\"", "\"orders\"" })
+        foreach (var literal in new[] { "\"kvstore\"", "\"pubsub\"", "\"orders\"" })
         {
             Assert.Single(Regex.Matches(source, Regex.Escape(literal), RegexOptions.CultureInvariant));
         }

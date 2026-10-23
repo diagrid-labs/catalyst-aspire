@@ -50,6 +50,34 @@ public class ComponentReconcileTests
         Assert.Equal("demo", args[Array.IndexOf(args, "--project") + 1]);
     }
 
+    // A managed KV store can already exist with NO component fronting it. Creating a project's first agent
+    // provisions one named "kvstore" with CreateComponent=false (control plane: EnsureAgentRegistry ->
+    // ensureDefaultKVStoreInfra -> CreateDefaultKVStore(WithCreateComponent(false))). `kv create` is then
+    // refused as a conflict, --ignore-if-exists reports success, and the component is never created -- so
+    // provisioning goes green and the app cannot address the store by name at runtime.
+    // Mutation: drop the component create from EnsureServicesAsync and this fails.
+    [Fact(Timeout = 60_000)]
+    public async Task Fronts_a_declared_kv_store_with_a_component_when_the_model_declares_none()
+    {
+        using var fake = new FakeDiagridFixture();
+        fake.SetScenario(Everything());
+        var (project, handler, _) = HandlerHarness.Build();
+        project.KvStores.Add("kvstore", new() { Project = "demo" });
+
+        await handler.ProvisionCatalystAsync(default);
+
+        var kvCreate = IndexOf(fake, i => i is ["kv", "create", "kvstore", ..]);
+        var componentCreate = IndexOf(fake, i => i is ["component", "create", "kvstore", ..]);
+        Assert.True(kvCreate >= 0, "the kv store must be created");
+        Assert.True(componentCreate > kvCreate, "the fronting component must follow kv create");
+
+        var args = fake.Invocations[componentCreate];
+        Assert.Equal("state.diagrid", args[Array.IndexOf(args, "--type") + 1]);
+        Assert.Contains("state=kvstore", args);
+        Assert.Contains("--ignore-if-exists", args);
+        Assert.Equal("demo", args[Array.IndexOf(args, "--project") + 1]);
+    }
+
     [Fact(Timeout = 60_000)]
     public async Task Updates_the_component_that_backs_a_declared_pubsub()
     {

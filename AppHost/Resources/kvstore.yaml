@@ -1,9 +1,9 @@
-# Dapr OSS side of the USE_CATALYST switch. The component name MUST stay "statestore": it is what
+# Dapr OSS side of the USE_CATALYST switch. The component name MUST stay "kvstore": it is what
 # WithCatalystKvStore() defaults to, so TestApi addresses the same name whichever side runs.
 apiVersion: dapr.io/v1alpha1
 kind: Component
 metadata:
-  name: statestore
+  name: kvstore
 spec:
   type: state.in-memory
   version: v1
