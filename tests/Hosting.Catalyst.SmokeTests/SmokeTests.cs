@@ -69,7 +69,7 @@ public class SmokeTests
         var name = SmokeProject.NewName();
         try
         {
-            // The USE_CATALYST=true AppHost wiring (test-api app, statestore, pubsub, subscription), plus an agent.
+            // The USE_CATALYST=true AppHost wiring (test-api app, kvstore, pubsub, subscription), plus an agent.
             var builder = DistributedApplication.CreateBuilder(["USE_CATALYST=true"]);
             DemoWiring.Configure<FakeApi>(builder, DemoWiring.UseCatalyst(builder), name);
             var catalyst = builder.Resources.OfType<CatalystProject>().Single();
@@ -94,7 +94,7 @@ public class SmokeTests
             }
 
             Assert.NotNull(await provisioner.TryGetProjectDetailsAsync(name, CancellationToken.None));
-            Assert.True(await provisioner.KvStoreExistsAsync("statestore", name, CancellationToken.None), "statestore missing");
+            Assert.True(await provisioner.KvStoreExistsAsync("kvstore", name, CancellationToken.None), "kvstore missing");
             Assert.True(await provisioner.PubSubExistsAsync("pubsub", name, CancellationToken.None), "pubsub missing");
         }
         finally

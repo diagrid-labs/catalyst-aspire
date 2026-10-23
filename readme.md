@@ -60,7 +60,7 @@ For create-only resources, a change you make in the AppHost is **ignored** if th
 - **Resource names are validated.** A resource name that is not a valid Catalyst name is rejected, as is one whose derived `{name}-catalyst-proxy` resource would exceed Aspire's 64-character limit (so names over 49 characters). Resources with no HTTP endpoint, such as workflow-only workers, are now supported.
 - **Duplicate subscriptions are rejected.** Declaring the same app, component and topic under two subscription names now throws, because it would deliver the topic twice. Reusing one subscription name for a different app, component or topic is rejected too.
 - **A component that collides with a managed store is detected.** If a component already exists under the store's name, the CLI's create can succeed without creating a store. Provisioning now notices and fails, naming the component, instead of carrying on.
-- **`WithCatalystKvStore()` and `WithCatalystPubSub()` do not add a component.** The CLI creates the fronting component, named after the store. Older XML docs said otherwise.
+- **`WithCatalystKvStore()` and `WithCatalystPubSub()` do not add a component to your AppHost model**, but provisioning now makes sure one exists, named after the service. The CLI usually creates it, so this is normally a no-op — see [Agents and the default service names](#agents-and-the-default-service-names) for the case where it is not.
 
 ### `actorStateStore`
 
@@ -114,7 +114,7 @@ A find-and-replace of `CatalystProvisioner` → `ICatalystProvisioner` plus the 
 - `CliAppDetails` and five CLI output DTOs were removed.
 - The `ResolveApiToken` signature changed.
 - `IgnoreIfExists` now defaults to `true` on four options records.
-- `SampleKvName` is unchanged: `WithCatalystKvStore()` with no name still creates `kvstore`. Expect to pass a name instead — the store has to match the Dapr state store component your services already address, so moving off Dapr OSS usually means `WithCatalystKvStore("statestore")` or whatever yours is called. The demo AppHost does this, and it is the one line the switch costs.
+- `SampleKvName` is unchanged: `WithCatalystKvStore()` with no name still creates `kvstore`. Pass a name when the store has to match a Dapr state store component your services already address — that is the one line switching from Dapr OSS costs. The demo AppHost names its store explicitly even though it uses the default, so the line is visible rather than implied.
 - Errors raised by the `WithCatalyst*` builder methods are now `InvalidOperationException` rather than bare `System.Exception`, so you can catch them selectively. A `catch (Exception)` still works.
 
 ## Getting Started
@@ -187,6 +187,13 @@ Catalyst supports [a variety of components](https://docs.diagrid.io/references/c
 when building your applications.
 
 Creating a managed KV store or pub/sub through `WithCatalystKvStore` or `WithCatalystPubSub` also creates a component with the same name, so you do not need `WithComponent` for the basic case. Your services can use `your-desired-kv-name` as their state store name straight away. Do not register a component under the same name as the service; that conflicts with the one the CLI creates.
+
+### Agents and the default service names
+
+Adding an agent with `WithCatalystAgent()` has a side effect worth knowing about: creating a project's **first** agent makes Catalyst provision a managed KV store named **`kvstore`** and a managed pub/sub named **`pubsub`** to back the agent registry — the same two names `WithCatalystKvStore()` and `WithCatalystPubSub()` default to. Two consequences:
+
+- **Those services are created without a fronting component.** A later `kv create kvstore` is refused as "already exists", which `--ignore-if-exists` reports as success, so the component your app addresses would never appear. This integration detects that and creates the missing component itself, so `SaveStateAsync("kvstore", …)` works either way. You do not need to do anything.
+- **They count against your plan's per-project limits.** If your organization allows one KV store per project, the agent's `kvstore` is it, and asking for a second under a different name fails with a quota error naming the region. Either reuse the default name or raise the limit with Diagrid support.
 
 Use `WithComponent` for additional or customized components, for example a second component over the same KV store with a key prefix and an explicit scope:
 

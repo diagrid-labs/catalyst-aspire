@@ -30,8 +30,17 @@ case "$mode" in
       echo "::error::still authenticated: the read succeeded."
       exit 1
     fi
+    # A timeout is the EXPECTED shape of "logged out" for this CLI, but only with the re-authentication banner
+    # to say so. With no usable credential, authenticateCommand falls through to the browser/device-code OIDC
+    # login: it prints "refreshing login session..." to stderr and then blocks waiting for a human, so the read
+    # never returns rather than failing. A bare timeout (network stall, hung DNS) still proves nothing.
     if [ "$rc" -eq 124 ]; then
-      echo "::error::the probe timed out after ${limit}s (a login prompt?): not proof of anything."
+      if grep -aEiq 'refreshing login session|logging in to|device code|authorize' "$err"; then
+        echo "Probe: the read blocked on a fresh login attempt (exit $rc) after announcing re-authentication: logged out."
+        exit 0
+      fi
+      echo "::error::the probe timed out after ${limit}s with no sign of a login attempt: not proof of anything. stderr follows."
+      cat "$err"
       exit 1
     fi
     # Matched against stderr only; kept in a variable (no early-exit pipelines under pipefail).

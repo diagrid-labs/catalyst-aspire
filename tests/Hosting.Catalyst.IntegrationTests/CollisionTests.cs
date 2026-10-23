@@ -129,8 +129,13 @@ public class CollisionTests
 
     // --- through the handler: the production path ---
 
+    // Was "never issues a component create", which assumed `kv create` / `pubsub create` always create the
+    // fronting component. They do not: against a service that already exists without one (an agent provisions
+    // "kvstore" and "pubsub" that way) the create is a swallowed conflict and no component appears. The
+    // invariant is now the narrower one that was actually meant -- no component create that could CONFLICT, and
+    // no listing -- so the fronting creates are idempotent and carry --ignore-if-exists.
     [Fact(Timeout = 60_000)]
-    public async Task Provisioning_a_managed_service_creates_it_probes_it_and_never_issues_a_component_create()
+    public async Task Provisioning_a_managed_service_creates_it_probes_it_and_fronts_it_idempotently()
     {
         using var fake = new FakeDiagridFixture();
         fake.SetScenario(new Scenario { Responses = [.. HandlerHarness.PreflightPasses(), ProjectGetReady(), new() { ExitCode = 0 }] });
@@ -146,8 +151,28 @@ public class CollisionTests
         var psGet = fake.Invocations.ToList().FindIndex(i => i is ["pubsub", "get", "pubsub", ..]);
         Assert.True(kvCreate >= 0 && kvGet > kvCreate, "kv get must follow kv create");
         Assert.True(psCreate >= 0 && psGet > psCreate, "pubsub get must follow pubsub create");
-        Assert.DoesNotContain(fake.Invocations, i => i is ["component", ..]);
         Assert.DoesNotContain(fake.Invocations, i => i is ["kv", "list", ..]);
+
+        // Each service is fronted by exactly one component create, after its own probe, and never an update:
+        // an update would fail on the very case this exists for, where the component does not exist yet.
+        // One snapshot throughout -- Invocations re-reads the log on every access.
+        var invocations = fake.Invocations.ToList();
+        Assert.DoesNotContain(invocations, i => i is ["component", "update", ..]);
+        foreach (var (service, type, key, probe) in new[]
+                 {
+                     ("statestore", "state.diagrid", "state=statestore", kvGet),
+                     ("pubsub", "pubsub.diagrid", "pubsub=pubsub", psGet),
+                 })
+        {
+            var at = invocations.FindIndex(i => i is ["component", "create", var n, ..] && n == service);
+            Assert.True(at > probe, $"{service} component create must follow its probe");
+            Assert.Single(invocations.FindAll(i => i is ["component", "create", var n, ..] && n == service));
+
+            var create = invocations[at];
+            Assert.Equal(type, create[Array.IndexOf(create, "--type") + 1]);
+            Assert.Contains(key, create);
+            Assert.Contains("--ignore-if-exists", create);
+        }
     }
 
     [Fact(Timeout = 60_000)]

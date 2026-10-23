@@ -83,16 +83,29 @@ public partial class FixtureCapture
     {
         switch (node)
         {
+            // Containers are normalised IN PLACE and returned as the same reference, so only a genuine
+            // replacement is written back. Assigning the same node into the slot it already occupies re-parents
+            // a node that still has a parent: JsonObject's indexer detaches the old value first and gets away
+            // with it, JsonArray.SetItem does not and throws "The node already has a parent".
             case JsonObject obj:
                 foreach (var (key, value) in obj.ToList())
                 {
-                    obj[key] = Normalise(value, names, key, inSecret || SecretKey().IsMatch(key));
+                    var replacement = Normalise(value, names, key, inSecret || SecretKey().IsMatch(key));
+                    if (!ReferenceEquals(replacement, value))
+                    {
+                        obj[key] = replacement;
+                    }
                 }
                 return obj;
             case JsonArray array:
                 for (var i = 0; i < array.Count; i++)
                 {
-                    array[i] = Normalise(array[i], names, parentKey, inSecret);
+                    var item = array[i];
+                    var replacement = Normalise(item, names, parentKey, inSecret);
+                    if (!ReferenceEquals(replacement, item))
+                    {
+                        array[i] = replacement;
+                    }
                 }
                 return array;
             case JsonValue value when value.TryGetValue<string>(out var s):

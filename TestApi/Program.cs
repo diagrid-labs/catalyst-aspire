@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 
 // Component names are the contract with the AppHost: both hosting modes expose these two components.
-const string StateStore = "statestore";
+const string StateStore = "kvstore";
 const string PubSub = "pubsub";
 const string Topic = "orders";
 

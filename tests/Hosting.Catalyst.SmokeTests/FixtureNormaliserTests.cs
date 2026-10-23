@@ -85,6 +85,33 @@ public class FixtureNormaliserTests
         Assert.Equal(Clean(monday).ToJsonString(), Clean(friday).ToJsonString());
     }
 
+    // Normalise mutates objects and arrays in place and returns the SAME node, so assigning that node back into
+    // the slot it already occupies re-parents a node that still has a parent. JsonObject's indexer detaches the
+    // old value first and survives; JsonArray.SetItem does not, and throws "The node already has a parent".
+    // Nothing caught it because every array in these tests held strings, which are replaced by NEW nodes.
+    // `app get` returns status.appIds[] -- an array of objects -- so the first capture to reach a real CLI died.
+    [Theory]
+    [InlineData("""{"items":[{"a":"b"}]}""")]
+    [InlineData("""{"items":[["a"]]}""")]
+    [InlineData("""{"status":{"appIds":[{"status":{"apiToken":"diagrid://real-secret"}}]}}""")]
+    [InlineData("""{"items":[{"a":"b"},{"c":"d"}]}""")]
+    public void Arrays_of_objects_and_arrays_normalise_without_throwing(string json)
+    {
+        var text = Clean(json).ToJsonString();
+
+        Assert.DoesNotContain("real-secret", text, StringComparison.Ordinal);
+    }
+
+    // The nested value must actually be normalised, not merely survive the walk.
+    [Fact]
+    public void A_secret_inside_an_array_of_objects_is_redacted()
+    {
+        var node = FixtureCapture.Normalise(
+            JsonNode.Parse("""{"status":{"appIds":[{"status":{"apiToken":"diagrid://real-secret"}}]}}"""), Names, null)!;
+
+        Assert.Equal("diagrid://mock-api-token", (string?)node["status"]!["appIds"]![0]!["status"]!["apiToken"]);
+    }
+
     // Guards the widened pattern: it must still only match timestamps.
     [Theory]
     [InlineData("not a date")]
