@@ -19,15 +19,19 @@ public class ProjectDetailsParsingTests
         Assert.DoesNotContain("\"endpoints\"", Fixture("project-get-pending.json"), StringComparison.Ordinal);
     }
 
-    // Mutation: swapping grpc and http in ToProjectDetails fails this (the two URLs differ).
+    // The URLs are what a real `project get` returns: one host per protocol, both on 443, no path. The earlier
+    // hand-built fixture used a shared host with a /v1/<project> path and distinct ports, which was never the
+    // shape the CLI emits. 443 is the default for https, so Uri renders it without the port and with the root
+    // path -- that is Uri's doing, not the CLI's.
+    // Mutation: swapping grpc and http in ToProjectDetails fails this (the two hosts differ).
     [Fact]
     public void Reads_a_ready_project_endpoints_without_transposing_grpc_and_http()
     {
         var d = CliProjectDetails.Parse(Fixture("project-get-ready.json")).ToProjectDetails();
 
         Assert.NotNull(d);
-        Assert.Equal(new Uri("https://http.r1.diagrid.io/v1/demo"), d.HttpEndpoint);
-        Assert.Equal(new Uri("https://grpc.r1.diagrid.io:7443/demo"), d.GrpcEndpoint);
+        Assert.Equal(new Uri("https://http-prj00000000.cloud.r1.diagrid.io:443"), d.HttpEndpoint);
+        Assert.Equal(new Uri("https://grpc-prj00000000.cloud.r1.diagrid.io:443"), d.GrpcEndpoint);
     }
 
     [Theory]

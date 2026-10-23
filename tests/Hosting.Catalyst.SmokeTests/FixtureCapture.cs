@@ -20,6 +20,9 @@ public partial class FixtureCapture
     private const string Redacted = "redacted";
     private const string MockUuid = "00000000-0000-0000-0000-000000000001";
 
+    /// <summary>Stands in for a Catalyst resource id. Eight digits, so re-running the masks is a no-op.</summary>
+    private const string MockNumericId = "00000000";
+
     // Every timestamp collapses to this one value so a capture on another day does not read as drift. It is written
     // in the shape the CLI actually emits -- space-separated, no zone -- verified against 1.109.0 on a live account:
     // metadata.createdAt "2026-10-20 05:17:48", status.updatedAt "2026-10-21 09:07:01.000". NOT ISO 8601.
@@ -66,9 +69,10 @@ public partial class FixtureCapture
 
     private static void Save(string dir, string file, string rawJson, string origin, string[] names)
     {
-        var root = (JsonObject)(Normalise(JsonNode.Parse(rawJson), names, null)
+        var all = NamesFor(rawJson, names);
+        var root = (JsonObject)(Normalise(JsonNode.Parse(rawJson), all, null)
             ?? throw new InvalidOperationException($"{file}: CLI printed no JSON"));
-        AssertNoSecrets(root, names);
+        AssertNoSecrets(root, all);
         var ordered = new JsonObject { ["_capturedFrom"] = origin };
         foreach (var (key, value) in root.ToList())
         {
@@ -77,6 +81,54 @@ public partial class FixtureCapture
         }
 
         File.WriteAllText(Path.Combine(dir, file), ordered.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + "\n");
+    }
+
+    /// <summary>
+    ///     The throwaway resource names, plus every cluster id the document mentions.
+    /// </summary>
+    /// <remarks>
+    ///     A cluster id (<c>vxjiifii</c>) is a bare word with no pattern to match on, and it appears both under
+    ///     its own key and inside every <c>spiffeId</c>, so masking the key would leave it in the URIs. Collecting
+    ///     it up front and treating it like a resource name replaces it wherever it occurs. It becomes "demo"
+    ///     along with everything else nameable in these fixtures, which keeps one placeholder rather than two.
+    /// </remarks>
+    internal static string[] NamesFor(string rawJson, string[] names)
+    {
+        var clusters = new SortedSet<string>(StringComparer.Ordinal);
+        Collect(JsonNode.Parse(rawJson), null);
+        return [.. names, .. clusters];
+
+        void Collect(JsonNode? node, string? key)
+        {
+            switch (node)
+            {
+                case JsonObject obj:
+                    foreach (var (k, v) in obj)
+                    {
+                        Collect(v, k);
+                    }
+                    break;
+                case JsonArray array:
+                    foreach (var item in array)
+                    {
+                        Collect(item, key);
+                    }
+                    break;
+                case JsonValue value when value.TryGetValue<string>(out var s) && s.Length > 0:
+                    if (key == "cluster")
+                    {
+                        clusters.Add(s);
+                    }
+                    else if (SpiffeCluster().Match(s) is { Success: true } spiffe)
+                    {
+                        // `agent get` carries spiffe://<cluster>.<region>... but no cluster key of its own, so
+                        // collecting only from that key left the id in all three of its spiffeIds.
+                        clusters.Add(spiffe.Groups[1].Value);
+                    }
+
+                    break;
+            }
+        }
     }
 
     internal static JsonNode? Normalise(JsonNode? node, string[] names, string? parentKey, bool inSecret = false)
@@ -155,6 +207,15 @@ public partial class FixtureCapture
             s = s.Replace(name, "demo", StringComparison.Ordinal);
         }
 
+        // Catalyst resource ids are plain numbers, so Uuid() never matched them and they reached the fixtures
+        // intact: a uid, and the project id inside every endpoint host and spiffeId. They change on every
+        // capture, so leaving them in would also report drift every night for ever.
+        s = NumericResourceId().Replace(s, MockNumericId);
+
+        // A generated per-resource suffix (demo-agentcfg-283d6626), likewise different on every capture.
+        // Runs after the id rule so an already-masked -00000000 is left as it is.
+        s = GeneratedSuffix().Replace(s, "-" + MockNumericId);
+
         s = Email().Replace(s, "user@example.com");
         return OpaqueId().Replace(s, Redacted);
     }
@@ -230,6 +291,21 @@ public partial class FixtureCapture
 
     [GeneratedRegex(@"^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")]
     private static partial Regex Uuid();
+
+    // Six or more digits in a row: a Catalyst resource id, wherever it sits (a bare uid, or embedded in
+    // "grpc-prj14272806.cloud.r1.diagrid.io"). Anchorless on purpose. Ports and resourceVersion are JSON
+    // numbers, not strings, so they never reach this; a normalised timestamp has no run this long.
+    [GeneratedRegex(@"\d{6,}")]
+    private static partial Regex NumericResourceId();
+
+    // A hyphen followed by exactly eight hex characters at the end of a word: the generated suffix on names
+    // like demo-agentcfg-283d6626. Narrow on purpose -- "diagrid-aws-eu-west" has no eight-hex run.
+    [GeneratedRegex(@"-[0-9a-f]{8}\b")]
+    private static partial Regex GeneratedSuffix();
+
+    // The cluster is the first label of a spiffe URI: spiffe://<cluster>.<region>...
+    [GeneratedRegex(@"^spiffe://([^./]+)\.")]
+    private static partial Regex SpiffeCluster();
 
     private static bool AnyNonMockString(JsonNode node) => node switch
     {
