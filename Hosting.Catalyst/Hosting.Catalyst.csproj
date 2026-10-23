@@ -20,14 +20,13 @@
         <PackageProjectUrl>https://github.com/diagrid-labs/catalyst-aspire</PackageProjectUrl>
         <PackageTags>aspire;dapr;diagrid;catalyst;distributed-applications;workflow;pubsub;statestore</PackageTags>
         <!--
-            TODO: no licence is declared, so nuget.org shows "License not specified" and some organisations
-            will refuse the package outright. There is no LICENSE file in the repo and GitHub reports none, so
-            this is a decision for Diagrid rather than something to infer. Once chosen, add a LICENSE file and
-            one of:
-              <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-              <PackageLicenseFile>LICENSE</PackageLicenseFile>
+            SPDX expression rather than PackageLicenseFile: nuget.org renders it as a known licence on the
+            package page instead of an attachment to open. The LICENSE file at the repo root is what GitHub
+            reads; the two must stay in agreement.
         -->
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <Copyright>Copyright (c) 2026 Diagrid</Copyright>
     </PropertyGroup>
 
     <ItemGroup>

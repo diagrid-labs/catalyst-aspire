@@ -258,7 +258,7 @@ Renaming `CatalystProvisioner` to `ICatalystProvisioner` and adding the `Async` 
 - **The push does not use `--skip-duplicate`.** If the version already exists the job fails, rather than going green and leaving you believing you shipped.
 - **Nothing publishes except a published release.** `workflow_dispatch` is pack-and-upload only. It used to push as well, which is how the placeholder version `0.0.0-development` reached NuGet.org.
 - **The release needs the `NUGET_API_KEY` secret** to be present and unexpired. NuGet.org API keys expire; a push failing with a 401 usually means the key needs regenerating.
-- **The package declares no licence.** NuGet.org shows "License not specified", and some organisations refuse such packages. Add a `LICENSE` file and the matching `PackageLicenseExpression` in `Hosting.Catalyst/Hosting.Catalyst.csproj` — there is a note in that file with the exact lines.
+- **The package is MIT licensed.** The `LICENSE` file at the repo root and `PackageLicenseExpression` in `Hosting.Catalyst/Hosting.Catalyst.csproj` must stay in agreement — GitHub reads the first, NuGet.org renders the second.
 
 ## Additional Resources
 
