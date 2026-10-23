@@ -102,6 +102,16 @@ jobs:
         run: |
           mkdir -p "$HOME" "$XDG_CONFIG_HOME"
           diagrid login --api-key "$CATALYST_API_KEY" --no-browser > /dev/null
+          # `login` is NOT proof the key works. The CLI only validates an API key when a credential already
+          # exists: testAPIKeyLogin returns early if the credential store read fails ("ignoring error, this
+          # means its not authenticated"). On a fresh runner with an empty isolated HOME that is always the
+          # case, so login accepts any structurally valid key and prints "Successfully authenticated".
+          # A revoked key then surfaced three steps later as "Invalid token: apikey not found" from whichever
+          # command happened to run first. whoami is the cheapest real call, so the key is proven here instead.
+          if ! diagrid whoami --no-color=true > /dev/null 2>&1; then
+            echo "::error title=Invalid CATALYST_API_KEY::diagrid login succeeded but 'diagrid whoami' failed, so the stored key is not accepted by the server. The key is structurally valid (login parses the org id from it) but revoked, deleted, or from another environment. Regenerate it in the Catalyst portal and update the CATALYST_API_KEY secret."
+            exit 1
+          fi
 
       # dotnet test reports a skip as success, so assert from the TRX that tests actually passed and none skipped.
       - name: "Smoke tests"
@@ -150,6 +160,45 @@ jobs:
               echo
             done
           } > tests/fixtures/cli/help.txt
+
+      # The three steps above are continue-on-error so that credential removal always runs. The cost is that
+      # their step CONCLUSION reads "success" while their OUTCOME is failure, so the run's step list looks
+      # healthy and `gh run view --log-failed` does not show them. The first nightly to fail did so in "Smoke
+      # tests", and the only visible failures were the credential checks three steps later -- which are
+      # consequences, not causes. This turns each outcome into an annotation naming the real first failure.
+      - name: "Report step outcomes"
+        if: always() && steps.gate.outputs.enabled == 'true'
+        env:
+          SMOKE: ${{ steps.smoke.outcome }}
+          CAPTURE: ${{ steps.capture.outcome }}
+          SCHEMAS: ${{ steps.schemas.outcome }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Account-backed steps"
+            echo
+            echo "| Step | Outcome |"
+            echo "| --- | --- |"
+            echo "| Smoke tests | \`$SMOKE\` |"
+            echo "| Capture fixtures | \`$CAPTURE\` |"
+            echo "| Capture CLI schemas and help | \`$SCHEMAS\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          first=""
+          for pair in "Smoke tests|$SMOKE" "Capture fixtures|$CAPTURE" "Capture CLI schemas and help|$SCHEMAS"; do
+            name="${pair%%|*}"
+            outcome="${pair##*|}"
+            if [ "$outcome" != "success" ] && [ -z "$first" ]; then
+              first="$name"
+              echo "::error title=First failure: $name::$name reported '$outcome'. It runs BEFORE the credential checks, so any later failure in those is a consequence of this one. Its output is in the step log; it is not listed by --log-failed because the step is continue-on-error."
+            elif [ "$outcome" != "success" ]; then
+              echo "::warning title=$name::$name reported '$outcome' (after '$first' had already failed)."
+            fi
+          done
+
+          if [ -n "$first" ]; then
+            echo "Earliest account-backed failure: $first" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       # Fail-closed: if anything credential-shaped survived normalisation, the job stops here and no later step
       # (including create-pull-request, which pushes to a public repo) runs.
