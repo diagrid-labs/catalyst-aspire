@@ -1,15 +1,20 @@
 {
-  "_capturedFrom": "hand-built, not captured from a real CLI run: modelled on the CLI golden structure, 2026-10-21; the version number 1.85.0 is a claimed floor, not a capture record; Task 16 re-captures from a real CLI. Timestamp FORMAT is the exception: space-separated YYYY-MM-DD HH:MM:SS on metadata.*, with a millisecond fraction on status.updatedAt, verified against CLI 1.109.0 on a live account 2026-10-21 (26 projects, 6 apps) -- these fixtures previously used ISO 8601, which the CLI does not emit.",
+  "_capturedFrom": "diagrid CLI 1.111.0, captured by the nightly workflow",
   "apiVersion": "cra.diagrid.io/v1beta1",
   "kind": "Agent",
   "metadata": {
-    "createdAt": "2026-10-21 09:00:00",
-    "name": "demo"
+    "annotations": {
+      "created-by-email": "user@example.com",
+      "organization_id": "00000000-0000-0000-0000-000000000001"
+    },
+    "createdAt": "2026-01-01 00:00:00",
+    "name": "demo",
+    "resourceVersion": 1,
+    "uid": "00000000",
+    "updatedAt": "2026-01-01 00:00:00"
   },
   "spec": {
-    "endpoint": {
-      "url": "http://localhost:5000"
-    }
+    "projectId": "demo"
   },
   "status": {
     "appIds": [
@@ -17,13 +22,42 @@
         "apiVersion": "cra.diagrid.io/v1beta1",
         "kind": "AppIdentity",
         "metadata": {
+          "annotations": {
+            "cra.diagrid.io/managed_by": "cra.diagrid.io/v1beta1/Agent/demo/00000000",
+            "diagrid.io/force-reconcile": "00000000-0000-0000-0000-000000000001"
+          },
+          "createdAt": "2026-01-01 00:00:00",
           "name": "demo",
-          "namespace": "demo-project"
+          "namespace": "demo",
+          "resourceVersion": 1,
+          "uid": "00000000",
+          "updatedAt": "2026-01-01 00:00:00"
         },
-        "spec": {},
+        "spec": {
+          "apiTokenRevision": 1,
+          "appConfig": "demo-agentcfg-00000000",
+          "projectId": "demo",
+          "protocol": "http"
+        },
         "status": {
           "apiToken": "diagrid://mock-api-token",
-          "appToken": "mock-app-token"
+          "messages": [
+            {
+              "message": "missing instances status data"
+            }
+          ],
+          "regionIdentities": [
+            {
+              "region": "diagrid-aws-eu-west",
+              "spiffeId": "spiffe://demo.diagrid-aws-eu-west.global.public.diagrid.io/ns/prj-00000000/demo"
+            }
+          ],
+          "spiffeId": "spiffe://demo.diagrid-aws-eu-west.global.public.diagrid.io/ns/prj-00000000/demo",
+          "spiffeIds": [
+            "spiffe://demo.diagrid-aws-eu-west.global.public.diagrid.io/ns/prj-00000000/demo"
+          ],
+          "status": "processing",
+          "updatedAt": "2026-01-01 00:00:00"
         }
       }
     ],
