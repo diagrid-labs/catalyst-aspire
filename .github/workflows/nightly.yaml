@@ -58,10 +58,28 @@ jobs:
         with:
           dotnet-version: 10.*.*
 
+      # Installed the way Diagrid documents it, rather than through Homebrew:
+      # https://docs.diagrid.io/getting-started/local-installation/#installing-the-cli
+      #   curl -o- https://downloads.diagrid.io/cli/install.sh | bash
+      #   sudo mv ./diagrid /usr/local/bin
+      #
+      # Run from RUNNER_TEMP, not the checkout: the script extracts the binary into the working directory, and
+      # here that would be the repo. The drift PR is scoped to tests/fixtures so a stray binary could not be
+      # committed, but leaving one in the tree is not something to make that scoping responsible for.
+      #
+      # pipefail is set explicitly. GitHub's default shell is `bash -e` WITHOUT it, so a download that failed
+      # would hand bash an empty script, bash would exit 0, and this step would pass having installed nothing.
+      #
+      # The version is deliberately not pinned. This workflow exists to notice when the CLI's output drifts, so
+      # it has to take whatever the install script currently ships. (That script honours RELEASE_VERSION if a
+      # future run ever does need pinning, but pinning here would switch the drift detector off.)
       - name: "Install the diagrid CLI"
         if: steps.gate.outputs.enabled == 'true'
+        working-directory: ${{ runner.temp }}
         run: |
-          brew install diagridio/tap/diagrid
+          set -euo pipefail
+          curl -o- https://downloads.diagrid.io/cli/install.sh | bash
+          sudo mv ./diagrid /usr/local/bin
           diagrid version --no-color=true
 
       # Build first, with the real HOME and no credential in reach.
