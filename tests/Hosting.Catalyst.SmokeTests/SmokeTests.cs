@@ -10,11 +10,26 @@ namespace Hosting.Catalyst.SmokeTests;
 
 public class SmokeTests
 {
-    // Only the shape matters: the model is built and provisioned, never run.
+    // Only the shape matters: the model is built and provisioned, never run. The path must still resolve to a
+    // real .csproj, because Aspire reads the project file while building the model -- AppContext.BaseDirectory
+    // is this test's bin directory, which never contains one.
     private sealed class FakeApi : IProjectMetadata
     {
-        public string ProjectPath => Path.Combine(AppContext.BaseDirectory, "TestApi.csproj");
+        public string ProjectPath => RepoFile("TestApi", "TestApi.csproj");
         public LaunchSettings? LaunchSettings => null;
+    }
+
+    /// <summary>Resolves a path from the repository root, found by walking up to the solution file.</summary>
+    private static string RepoFile(params string[] parts)
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "catalyst-aspire.sln")))
+        {
+            dir = dir.Parent;
+        }
+
+        Assert.NotNull(dir);
+        return Path.Combine([dir.FullName, .. parts]);
     }
 
     private sealed class HostLifetimeStub : IHostApplicationLifetime
@@ -28,6 +43,20 @@ public class SmokeTests
     private sealed class EmptyServiceProvider : IServiceProvider
     {
         public object? GetService(Type serviceType) => null;
+    }
+
+    // Deliberately NOT skippable. Every other test here needs an account, so the harness itself was only ever
+    // exercised by the nightly -- and the first nightly that ran it failed before reaching Catalyst at all,
+    // because ProjectPath pointed inside this test's own bin directory where no .csproj can exist.
+    // Aspire reads the project file while building the model, so a wrong path breaks the smoke test for a
+    // reason that has nothing to do with Catalyst. This check costs nothing and runs on every CI build.
+    [Fact]
+    public void The_harness_points_at_the_real_TestApi_project()
+    {
+        var path = new FakeApi().ProjectPath;
+
+        Assert.True(File.Exists(path), $"FakeApi.ProjectPath does not exist: {path}");
+        Assert.Equal("TestApi.csproj", Path.GetFileName(path));
     }
 
     // Every fact carries this guard; absent the variable the suite is skipped, so a developer without an
