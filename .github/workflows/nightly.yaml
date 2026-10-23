@@ -256,7 +256,14 @@ jobs:
           echo "Credential removed and verified: the control succeeded earlier; the same read now fails as unauthenticated from both homes."
 
       # Not success(): a failed smoke test or sweep must not suppress the drift PR. Only the secret scan and the verified credential removal gate it.
+      # continue-on-error: creating the PR needs a permission this workflow cannot grant itself. "Allow GitHub
+      # Actions to create and approve pull requests" is an org/repo policy, and with it off this step fails with
+      # "GitHub Actions is not permitted to create or approve pull requests" AFTER pushing the branch. The drift
+      # is therefore safe either way, and a refused notification must not read as a failed nightly: the step
+      # below turns that case into an issue instead.
       - name: "Open a PR when fixtures drifted"
+        id: drift_pr
+        continue-on-error: true
         if: ${{ !cancelled() && steps.gate.outputs.enabled == 'true' && steps.scan.outcome == 'success' && steps.logout.outcome == 'success' }}
         uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7.0.11
         with:
@@ -268,6 +275,59 @@ jobs:
             The nightly run re-captured `tests/fixtures` from a real diagrid CLI and they differ from what is committed.
             The diff is the drift signal: read it, then fix the integration or accept the new shape.
             Tokens, names, timestamps and ids are normalised on capture and scanned for secrets before this PR, so a diff here is a real change.
+
+      # The fallback for a refused PR. The branch is already pushed, so nothing is lost and only the
+      # notification changes: an issue says the same thing and needs no permission this job lacks (it already
+      # holds issues: write, which "Open an issue when the nightly fails" below relies on).
+      # One issue, reused: matched by exact title so a nightly that drifts for a week comments rather than
+      # opening seven issues. This step does NOT continue-on-error -- if the drift cannot be announced at all,
+      # the run must go red.
+      - name: "Report drift as an issue when the PR could not be created"
+        if: ${{ !cancelled() && steps.drift_pr.outcome == 'failure' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: automation/fixture-drift
+          TITLE: "Fixture drift captured, but the PR could not be opened"
+        run: |
+          set -euo pipefail
+          compare="${{ github.server_url }}/${{ github.repository }}/compare/${{ github.event.repository.default_branch }}...$BRANCH"
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          body=$(cat <<EOF
+          The nightly re-captured \`tests/fixtures\` from a real diagrid CLI and they differ from what is committed.
+          **The capture itself succeeded** and the branch \`$BRANCH\` is pushed; only opening the pull request was refused.
+
+          - Diff: $compare
+          - Run: $run_url
+
+          Opening a PR failed because GitHub Actions is not permitted to create pull requests in this repository.
+          Turn it on under **Settings - Actions - General - Workflow permissions** ("Allow GitHub Actions to create
+          and approve pull requests") and the next run will open a PR instead of this issue. Until then the branch
+          is still updated every night, so nothing is lost and a PR can be opened from it by hand.
+
+          Read the diff before accepting it: normalisation replaces tokens, e-mail addresses, UUID-shaped ids and
+          timestamps, but Catalyst resource ids are plain numbers and are **not** normalised, so a capture can
+          carry real project and app ids and the hostnames derived from them into this public repository.
+          EOF
+          )
+
+          existing=$(gh issue list --state open --limit 100 --json number,title \
+            --jq "[.[] | select(.title == \"$TITLE\") | .number] | first // empty")
+
+          # Only an issue NUMBER may be passed on. Anything else means the query did not return what this
+          # expects, and announcing the drift in a new issue beats addressing a comment to a parsed accident.
+          if [ -n "$existing" ] && ! printf '%s' "$existing" | grep -qE '^[0-9]+$'; then
+            echo "::warning::could not read an issue number from the issue list (got '$existing'); opening a new issue."
+            existing=""
+          fi
+
+          if [ -n "$existing" ]; then
+            echo "Commenting on existing issue #$existing"
+            gh issue comment "$existing" --body "$body"
+          else
+            echo "Opening a new drift issue"
+            gh issue create --title "$TITLE" --body "$body"
+          fi
 
       - name: "Open an issue when the nightly fails"
         if: always() && steps.gate.outputs.enabled == 'true' && (steps.smoke.outcome == 'failure' || steps.capture.outcome == 'failure' || steps.schemas.outcome == 'failure' || steps.scan.outcome == 'failure' || steps.sweep.outcome == 'failure' || steps.control.outcome == 'failure' || steps.logout.outcome == 'failure')
