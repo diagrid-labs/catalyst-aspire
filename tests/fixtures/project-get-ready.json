@@ -1,33 +1,63 @@
 {
-  "_capturedFrom": "hand-built, not captured from a real CLI run: modelled on the CLI golden structure, 2026-10-21; the version number 1.85.0 is a claimed floor, not a capture record; Task 16 re-captures from a real CLI. Timestamp FORMAT is the exception: space-separated YYYY-MM-DD HH:MM:SS on metadata.*, with a millisecond fraction on status.updatedAt, verified against CLI 1.109.0 on a live account 2026-10-21 (26 projects, 6 apps) -- these fixtures previously used ISO 8601, which the CLI does not emit.",
+  "_capturedFrom": "diagrid CLI 1.111.0, captured by the nightly workflow",
   "apiVersion": "cra.diagrid.io/v1beta1",
   "kind": "Project",
   "metadata": {
-    "createdAt": "2026-10-21 09:00:00",
+    "annotations": {
+      "created-by-email": "user@example.com"
+    },
+    "createdAt": "2026-01-01 00:00:00",
     "name": "demo",
-    "resourceVersion": 3,
-    "uid": "00000000-0000-0000-0000-000000000001",
-    "updatedAt": "2026-10-21 09:02:00"
+    "resourceVersion": 1,
+    "uid": "14276762",
+    "updatedAt": "2026-01-01 00:00:00"
   },
   "spec": {
-    "defaultWorkflowStoreEnabled": true,
+    "defaultAgentInfrastructureEnabled": false,
+    "defaultKVStoreEnabled": false,
+    "defaultPubsubEnabled": false,
+    "defaultWorkflowStoreEnabled": false,
     "disableAppTunnels": false,
     "displayName": "demo",
+    "enableWorkflowHistorySigning": false,
     "privateRegion": false,
-    "region": "aws-eu-central-1"
+    "region": "diagrid-aws-eu-west"
   },
   "status": {
+    "defaultWorkflowStoreEnabled": false,
     "endpoints": {
       "grpc": {
-        "port": 7443,
-        "url": "https://grpc.r1.diagrid.io:7443/demo"
+        "host": "grpc-prj14276762.cloud.r1.diagrid.io",
+        "port": 443,
+        "scheme": "https",
+        "url": "https://grpc-prj14276762.cloud.r1.diagrid.io:443"
       },
       "http": {
-        "port": 8443,
-        "url": "https://http.r1.diagrid.io/v1/demo"
+        "host": "http-prj14276762.cloud.r1.diagrid.io",
+        "port": 443,
+        "scheme": "https",
+        "url": "https://http-prj14276762.cloud.r1.diagrid.io:443"
       }
     },
+    "regionEndpoints": [
+      {
+        "grpc": {
+          "host": "grpc-prj14276762.cloud.r1.diagrid.io",
+          "port": 443,
+          "scheme": "https",
+          "url": "https://grpc-prj14276762.cloud.r1.diagrid.io:443"
+        },
+        "http": {
+          "host": "http-prj14276762.cloud.r1.diagrid.io",
+          "port": 443,
+          "scheme": "https",
+          "url": "https://http-prj14276762.cloud.r1.diagrid.io:443"
+        },
+        "oidc": "https://oidc.r1.diagrid.io/redacted",
+        "region": "diagrid-aws-eu-west"
+      }
+    ],
     "status": "ready",
-    "updatedAt": "2026-10-21 09:02:00.000"
+    "updatedAt": "2026-01-01 00:00:00"
   }
 }

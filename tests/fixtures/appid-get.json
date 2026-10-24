@@ -1,24 +1,54 @@
 {
-  "_capturedFrom": "hand-built, not captured from a real CLI run: modelled on the CLI golden structure, 2026-10-21; the version number 1.85.0 is a claimed floor, not a capture record; Task 16 re-captures from a real CLI. Timestamp FORMAT is the exception: space-separated YYYY-MM-DD HH:MM:SS on metadata.*, with a millisecond fraction on status.updatedAt, verified against CLI 1.109.0 on a live account 2026-10-21 (26 projects, 6 apps) -- these fixtures previously used ISO 8601, which the CLI does not emit.",
+  "_capturedFrom": "diagrid CLI 1.111.0, captured by the nightly workflow",
   "apiVersion": "cra.diagrid.io/v1beta1",
   "kind": "AppIdentity",
   "metadata": {
-    "createdAt": "2026-10-21 09:00:00",
-    "name": "demo"
+    "annotations": {
+      "created-by-email": "user@example.com"
+    },
+    "createdAt": "2026-01-01 00:00:00",
+    "name": "demo",
+    "resourceVersion": 1,
+    "uid": "14276770",
+    "updatedAt": "2026-01-01 00:00:00"
   },
   "spec": {
-    "apiTokenRevision": 0,
-    "appEndpoint": {
-      "token": "mock-app-token",
-      "url": "http://localhost:5000"
-    },
-    "protocol": "http"
+    "apiTokenRevision": 1,
+    "projectId": "demo",
+    "protocol": "http",
+    "resiliency": {
+      "circuitBreakerPolicyName": "none",
+      "retryPolicyName": "none",
+      "timeoutPolicyName": "none"
+    }
   },
   "status": {
     "apiToken": "diagrid://mock-api-token",
-    "appEndpointStatus": "ready",
-    "appToken": "mock-app-token",
+    "instances": [
+      {
+        "cluster": "vxjiifii",
+        "placementId": "0",
+        "region": "diagrid-aws-eu-west",
+        "status": "ready",
+        "updatedAt": "2026-01-01 00:00:00"
+      }
+    ],
+    "regionIdentities": [
+      {
+        "region": "diagrid-aws-eu-west",
+        "spiffeId": "spiffe://vxjiifii.diagrid-aws-eu-west.global.public.diagrid.io/ns/prj-14276762/demo"
+      }
+    ],
+    "resiliencyStatus": {
+      "circuitBreakerPolicyName": "none",
+      "retryPolicyName": "none",
+      "timeoutPolicyName": "none"
+    },
+    "spiffeId": "spiffe://vxjiifii.diagrid-aws-eu-west.global.public.diagrid.io/ns/prj-14276762/demo",
+    "spiffeIds": [
+      "spiffe://vxjiifii.diagrid-aws-eu-west.global.public.diagrid.io/ns/prj-14276762/demo"
+    ],
     "status": "ready",
-    "updatedAt": "2026-10-21 09:00:05.000"
+    "updatedAt": "2026-01-01 00:00:00"
   }
 }
