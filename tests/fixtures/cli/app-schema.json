@@ -1,0 +1,1033 @@
+{
+  "type": "object",
+  "title": "App",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "title": "apiVersion"
+    },
+    "kind": {
+      "type": "string",
+      "title": "kind"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The resource's name. It identifies the resource in request paths and cannot be changed. On create, the name must use only lowercase letters, digits and hyphens, start with a letter, and end with a letter or digit (`^[a-z]([a-z0-9-]*[a-z0-9])?$`)."
+        },
+        "uid": {
+          "type": "string",
+          "description": "A unique identifier the server assigns to the resource when it is created."
+        },
+        "resourceVersion": {
+          "type": "integer",
+          "description": "The version of the resource's spec. The server increments it each time the spec changes."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "When the resource was created, in UTC."
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "When the resource was last changed, in UTC."
+        },
+        "deletedAt": {
+          "type": "string",
+          "description": "When the resource's deletion was requested, in UTC. Absent while the resource is not being deleted."
+        },
+        "labels": {
+          "type": "object",
+          "description": "Key-value pairs attached to the resource.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Additional information attached to the resource as key-value pairs.",
+          "additionalProperties": true
+        }
+      }
+    },
+    "spec": {
+      "type": "object",
+      "title": "AppSpec",
+      "description": "The desired state of an App.",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "description": "Server-derived from the request path; the client-supplied value is ignored.",
+          "x-immutable": true,
+          "readOnly": true
+        },
+        "protocol": {
+          "type": "string",
+          "enum": [
+            "http",
+            "grpc"
+          ],
+          "description": "Selects the application-channel protocol the sidecar uses to communicate with the app endpoint: \"http\" (default) or \"grpc\"."
+        },
+        "endpoint": {
+          "type": "object",
+          "title": "AppSpecEndpoint",
+          "description": "The reachable URL of the user's application workload.",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "The address of the application."
+            },
+            "token": {
+              "type": "string",
+              "description": "Authenticates calls from the dataplane to the app endpoint. It can only be written; responses never include it (a generated token is returned once as status.appToken).",
+              "writeOnly": true
+            }
+          },
+          "required": [
+            "url"
+          ]
+        },
+        "maxBodySize": {
+          "type": "string",
+          "description": "Overrides the project-level maximum body size for HTTP and gRPC requests handled by this App (e.g. \"4Mi\", \"8Mi\", \"16Mi\")."
+        },
+        "appChannelTimeoutSeconds": {
+          "type": "integer",
+          "format": "int32",
+          "description": "The timeout in seconds for the sidecar to connect to the application endpoint. Zero or absent uses the server default."
+        },
+        "healthCheck": {
+          "type": "object",
+          "title": "AppSpecHealthCheck",
+          "description": "Configures how the sidecar checks that the app is healthy.",
+          "properties": {
+            "path": {
+              "type": "string",
+              "description": "The HTTP path probed, for example /healthz. Used with the http protocol only."
+            },
+            "probe": {
+              "type": "object",
+              "title": "AppSpecHealthCheckProbe",
+              "description": "Sets how the sidecar probes the app's health.",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Turns health probing on."
+                },
+                "intervalInSec": {
+                  "type": "integer",
+                  "format": "int32",
+                  "description": "The time between probes, in seconds."
+                },
+                "timeoutInMs": {
+                  "type": "integer",
+                  "format": "int32",
+                  "description": "How long a probe may take before it counts as failed, in milliseconds."
+                },
+                "failureThreshold": {
+                  "type": "integer",
+                  "format": "int32",
+                  "description": "The number of failed probes in a row after which the app is reported unhealthy."
+                }
+              }
+            }
+          }
+        },
+        "appConfig": {
+          "type": "string",
+          "description": "Names the Dapr Configuration this App loads, for example to set tracing, access control or feature flags. Omitting it on an update leaves the current binding in place; an empty string removes it."
+        },
+        "workflowArchive": {
+          "type": "object",
+          "title": "AppSpecWorkflowArchive",
+          "description": "Selects which terminal workflow states have their history archived on purge and where the archive is written. Archiving is enabled when a destination binding is set.",
+          "properties": {
+            "completed": {
+              "type": "boolean",
+              "description": "Archives workflows that reach the Completed terminal state."
+            },
+            "failed": {
+              "type": "boolean",
+              "description": "Archives workflows that reach the Failed terminal state."
+            },
+            "terminated": {
+              "type": "boolean",
+              "description": "Archives workflows that reach the Terminated terminal state."
+            },
+            "destination": {
+              "type": "object",
+              "title": "AppSpecWorkflowArchiveDestination",
+              "description": "Identifies the archive output binding.",
+              "properties": {
+                "binding": {
+                  "type": "string",
+                  "description": "The output-binding component name. Empty disables archiving."
+                },
+                "type": {
+                  "type": "string",
+                  "description": "The binding component type (e.g. \"bindings.aws.s3\")."
+                }
+              }
+            }
+          }
+        },
+        "workflowNotifications": {
+          "type": "object",
+          "title": "AppSpecWorkflowNotifications",
+          "description": "Selects which workflow outcomes raise an alert. Completed workflows are not selectable: the policy reports outcomes that need someone's attention.",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "A regular expression the workflow name must match in full. Empty matches every workflow."
+            },
+            "failed": {
+              "type": "boolean",
+              "description": "Notifies workflows that reach the Failed terminal state."
+            },
+            "terminated": {
+              "type": "boolean",
+              "description": "Notifies workflows that reach the Terminated terminal state."
+            },
+            "stalled": {
+              "type": "boolean",
+              "description": "Notifies workflows that reach the Stalled state."
+            },
+            "rootOnly": {
+              "type": "boolean",
+              "description": "Restricts notifications to workflows with no parent, so one failing parent does not also alert for each of its children."
+            }
+          }
+        },
+        "workflowApi": {
+          "type": "string",
+          "enum": [
+            "dapr",
+            "temporal"
+          ],
+          "default": "dapr",
+          "description": "The API this App's workflows use: \"dapr\" (the default) or \"temporal\". With \"temporal\", Temporal SDK clients connect to the project's gRPC endpoint, status.endpoints.grpc, using the App's name as the namespace and its API token as the API key. It needs a region that supports it and a project with a workflow store, and it cannot be changed later.",
+          "x-immutable": true
+        }
+      },
+      "required": [
+        "projectId"
+      ]
+    },
+    "status": {
+      "type": "object",
+      "title": "AppStatus",
+      "description": "The observed state of an App.",
+      "properties": {
+        "status": {
+          "type": "string",
+          "description": "The current processing status of the resource."
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "The time of the last status update."
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "title": "AppStatusMessagesItem",
+            "description": "One status message.",
+            "properties": {
+              "message": {
+                "type": "string",
+                "description": "The text of the message."
+              }
+            }
+          },
+          "description": "Contains any status messages, such as error details."
+        },
+        "instances": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "title": "AppStatusInstancesItem",
+            "description": "Represents the status for an instance of a regional resource.",
+            "properties": {
+              "cluster": {
+                "type": "string",
+                "description": "The name of the cluster that runs this instance in the region. In a public region or a dedicated region it is a cluster Diagrid operates; in a private region it is one of the clusters you joined to the region."
+              },
+              "region": {
+                "type": "string",
+                "description": "The region where the instance is located (e.g. \"us-east-1\")."
+              },
+              "placementId": {
+                "type": "string",
+                "description": "The project placement this instance belongs to (e.g. \"1\")."
+              },
+              "status": {
+                "type": "string",
+                "description": "The current processing status of the resource."
+              },
+              "updatedAt": {
+                "type": "string",
+                "description": "The time of the last status update."
+              },
+              "messages": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "title": "AppStatusMessagesItem",
+                  "description": "One status message.",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "description": "The text of the message."
+                    }
+                  }
+                },
+                "description": "Contains any status messages, such as error details."
+              }
+            }
+          },
+          "description": "Includes the status for each instance of the resource"
+        },
+        "apiToken": {
+          "type": "string",
+          "description": "Deprecated: read the API token from the embedded backing App ID under status.appIds (request the App with include=appids) instead. Retained for backward compatibility and still populated on Get; omitted unless the caller has the appIdCredentials.get permission, or appIdCredentials.list in a list response."
+        },
+        "appToken": {
+          "type": "string",
+          "description": "Deprecated: read the app token from the embedded backing App ID under status.appIds (request the App with include=appids) instead. Retained for backward compatibility. Omitted when the App has no endpoint, and unless the caller has the appIdCredentials.get permission, or appIdCredentials.list in a list response."
+        },
+        "endpointStatus": {
+          "type": "string",
+          "description": "Reports app-endpoint connectivity — \"connected\", \"disconnected\" or \"unknown\". Empty when the App has no endpoint."
+        },
+        "appIds": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "title": "AppStatusAppIdsItem",
+            "description": "An App ID: the identity a workload uses to connect to Catalyst.",
+            "properties": {
+              "apiVersion": {
+                "type": "string",
+                "description": "The API group and version of the resource, for example cra.diagrid.io/v1beta1."
+              },
+              "kind": {
+                "type": "string",
+                "description": "The type of the resource, for example AppIdentity."
+              },
+              "metadata": {
+                "type": "object",
+                "title": "AppStatusAppIdsItemMetadata",
+                "description": "The metadata of a resource.",
+                "properties": {
+                  "uid": {
+                    "type": "string",
+                    "description": "A unique identifier the server assigns to the resource when it is created."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "The resource's name. It identifies the resource in request paths and cannot be changed."
+                  },
+                  "namespace": {
+                    "type": "string",
+                    "description": "The uid of the project or organization the resource belongs to."
+                  },
+                  "resourceVersion": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "The version of the resource's spec. The server increments it each time the spec changes."
+                  },
+                  "statusVersion": {
+                    "type": "integer",
+                    "format": "int64",
+                    "description": "The version of the resource's status. The server increments it each time the status changes."
+                  },
+                  "createdAt": {
+                    "type": "string",
+                    "description": "When the resource was created, in UTC."
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "description": "When the resource was last changed, in UTC."
+                  },
+                  "deletedAt": {
+                    "type": "string",
+                    "description": "When the resource's deletion was requested, in UTC. Absent while the resource is not being deleted."
+                  },
+                  "finalizers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Finalizers name the cleanup steps that must finish before a deleted resource is removed."
+                  },
+                  "annotations": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "description": "Additional information attached to the resource as key-value pairs."
+                  },
+                  "hash": {
+                    "type": "string",
+                    "description": "A hash of the resource's content, computed by the server."
+                  },
+                  "labels": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "Key-value pairs attached to the resource."
+                  }
+                },
+                "required": [
+                  "name",
+                  "namespace"
+                ]
+              },
+              "spec": {
+                "type": "object",
+                "title": "AppStatusAppIdsItemSpec",
+                "description": "The user-facing specification of an App ID.",
+                "properties": {
+                  "projectId": {
+                    "type": "string",
+                    "description": "Server-derived from the request path; the client-supplied value is ignored.",
+                    "x-immutable": true,
+                    "readOnly": true
+                  },
+                  "apiTokenRevision": {
+                    "type": "integer",
+                    "description": "The revision of the App ID's API token. Set it to a value higher than the current one to issue a new API token."
+                  },
+                  "appEndpoint": {
+                    "type": "object",
+                    "title": "AppStatusAppIdsItemSpecAppEndpoint",
+                    "description": "The application endpoint configuration of an App ID.",
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "description": "The address of the application."
+                      },
+                      "clientTimeoutSeconds": {
+                        "type": "integer",
+                        "description": "The timeout, in seconds, for the sidecar to connect to the application. Zero uses the server default."
+                      },
+                      "token": {
+                        "type": "string",
+                        "description": "Authenticates calls from the dataplane to the app endpoint. It can only be written: responses never include it, the app token is only returned as .status.appToken.",
+                        "writeOnly": true
+                      }
+                    }
+                  },
+                  "healthCheck": {
+                    "type": "object",
+                    "title": "AppSpecHealthCheck",
+                    "description": "Configures how the sidecar checks that the app is healthy.",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "description": "The HTTP path probed, for example /healthz. Used with the http protocol only."
+                      },
+                      "probe": {
+                        "type": "object",
+                        "title": "AppSpecHealthCheckProbe",
+                        "description": "Sets how the sidecar probes the app's health.",
+                        "properties": {
+                          "enabled": {
+                            "type": "boolean",
+                            "description": "Turns health probing on."
+                          },
+                          "intervalInSec": {
+                            "type": "integer",
+                            "format": "int32",
+                            "description": "The time between probes, in seconds."
+                          },
+                          "timeoutInMs": {
+                            "type": "integer",
+                            "format": "int32",
+                            "description": "How long a probe may take before it counts as failed, in milliseconds."
+                          },
+                          "failureThreshold": {
+                            "type": "integer",
+                            "format": "int32",
+                            "description": "The number of failed probes in a row after which the app is reported unhealthy."
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "protocol": {
+                    "type": "string",
+                    "description": "The protocol used to call the app endpoint: \"http\" (the default) or \"grpc\"."
+                  },
+                  "appConfig": {
+                    "type": "string",
+                    "description": "Names the Dapr Configuration the App ID loads, for example to set tracing, access control or feature flags."
+                  },
+                  "resiliency": {
+                    "type": "object",
+                    "title": "AppStatusAppIdsItemSpecResiliency",
+                    "description": "Selects the built-in resiliency policies applied to calls to the App ID.",
+                    "properties": {
+                      "retryPolicyName": {
+                        "type": "string",
+                        "description": "\"default-retry-resiliency-policy\" or \"none\"."
+                      },
+                      "timeoutPolicyName": {
+                        "type": "string",
+                        "description": "\"default-timeout-resiliency-policy\" or \"none\"."
+                      },
+                      "circuitBreakerPolicyName": {
+                        "type": "string",
+                        "description": "\"default-circuit-breaker-resiliency-policy\" or \"none\"."
+                      }
+                    }
+                  },
+                  "maxBodySize": {
+                    "type": "string",
+                    "description": "Overrides the project's maximum body size for HTTP and gRPC requests handled by the App ID, for example \"4Mi\" or \"16Mi\"."
+                  },
+                  "external": {
+                    "type": "boolean",
+                    "description": "Marks an App ID whose workload connects to the data plane from outside Catalyst, using status.externalBootstrapConfig. It cannot be changed after creation.",
+                    "x-immutable": true
+                  },
+                  "appContainer": {
+                    "type": "object",
+                    "title": "AppStatusAppIdsItemSpecAppContainer",
+                    "description": "The container Catalyst runs next to the App ID's sidecar. It is set by Catalyst for App IDs it manages; a request that sets it is rejected.",
+                    "properties": {
+                      "image": {
+                        "type": "string",
+                        "description": "The container image."
+                      },
+                      "port": {
+                        "type": "integer",
+                        "description": "The port the container listens on."
+                      },
+                      "pullPolicy": {
+                        "type": "string",
+                        "description": "The image pull policy."
+                      },
+                      "command": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Overrides the image's entrypoint."
+                      },
+                      "args": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "The arguments passed to the command."
+                      },
+                      "env": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        },
+                        "description": "Environment variables set in the container, by name."
+                      },
+                      "files": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        },
+                        "description": "Files mounted read-only into the container's /app directory, keyed by file name."
+                      }
+                    }
+                  },
+                  "workflowArchive": {
+                    "type": "object",
+                    "title": "AppSpecWorkflowArchive",
+                    "description": "Selects which terminal workflow states have their history archived on purge and where the archive is written. Archiving is enabled when a destination binding is set.",
+                    "properties": {
+                      "completed": {
+                        "type": "boolean",
+                        "description": "Archives workflows that reach the Completed terminal state."
+                      },
+                      "failed": {
+                        "type": "boolean",
+                        "description": "Archives workflows that reach the Failed terminal state."
+                      },
+                      "terminated": {
+                        "type": "boolean",
+                        "description": "Archives workflows that reach the Terminated terminal state."
+                      },
+                      "destination": {
+                        "type": "object",
+                        "title": "AppSpecWorkflowArchiveDestination",
+                        "description": "Identifies the archive output binding.",
+                        "properties": {
+                          "binding": {
+                            "type": "string",
+                            "description": "The output-binding component name. Empty disables archiving."
+                          },
+                          "type": {
+                            "type": "string",
+                            "description": "The binding component type (e.g. \"bindings.aws.s3\")."
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "workflowNotifications": {
+                    "type": "object",
+                    "title": "AppSpecWorkflowNotifications",
+                    "description": "Selects which workflow outcomes raise an alert. Completed workflows are not selectable: the policy reports outcomes that need someone's attention.",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "A regular expression the workflow name must match in full. Empty matches every workflow."
+                      },
+                      "failed": {
+                        "type": "boolean",
+                        "description": "Notifies workflows that reach the Failed terminal state."
+                      },
+                      "terminated": {
+                        "type": "boolean",
+                        "description": "Notifies workflows that reach the Terminated terminal state."
+                      },
+                      "stalled": {
+                        "type": "boolean",
+                        "description": "Notifies workflows that reach the Stalled state."
+                      },
+                      "rootOnly": {
+                        "type": "boolean",
+                        "description": "Restricts notifications to workflows with no parent, so one failing parent does not also alert for each of its children."
+                      }
+                    }
+                  },
+                  "workflowApi": {
+                    "type": "string",
+                    "enum": [
+                      "dapr",
+                      "temporal"
+                    ],
+                    "default": "dapr",
+                    "description": "The API this App ID's workflows use: \"dapr\" (the default) or \"temporal\". With \"temporal\", Temporal SDK clients connect to the project's gRPC endpoint, status.endpoints.grpc, using the App ID's name as the namespace and its API token as the API key. It needs a region that supports it, a project with a workflow store and an App ID that is not external, and it cannot be changed later.",
+                    "x-immutable": true
+                  }
+                },
+                "required": [
+                  "projectId"
+                ]
+              },
+              "status": {
+                "type": "object",
+                "title": "AppStatusAppIdsItemStatus",
+                "description": "The observed state of an App ID.",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "description": "The current processing status of the resource."
+                  },
+                  "updatedAt": {
+                    "type": "string",
+                    "description": "The time of the last status update."
+                  },
+                  "messages": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "title": "AppStatusMessagesItem",
+                      "description": "One status message.",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "description": "The text of the message."
+                        }
+                      }
+                    },
+                    "description": "Contains any status messages, such as error details."
+                  },
+                  "instances": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "title": "AppStatusInstancesItem",
+                      "description": "Represents the status for an instance of a regional resource.",
+                      "properties": {
+                        "cluster": {
+                          "type": "string",
+                          "description": "The name of the cluster that runs this instance in the region. In a public region or a dedicated region it is a cluster Diagrid operates; in a private region it is one of the clusters you joined to the region."
+                        },
+                        "region": {
+                          "type": "string",
+                          "description": "The region where the instance is located (e.g. \"us-east-1\")."
+                        },
+                        "placementId": {
+                          "type": "string",
+                          "description": "The project placement this instance belongs to (e.g. \"1\")."
+                        },
+                        "status": {
+                          "type": "string",
+                          "description": "The current processing status of the resource."
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "description": "The time of the last status update."
+                        },
+                        "messages": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "title": "AppStatusMessagesItem",
+                            "description": "One status message.",
+                            "properties": {
+                              "message": {
+                                "type": "string",
+                                "description": "The text of the message."
+                              }
+                            }
+                          },
+                          "description": "Contains any status messages, such as error details."
+                        }
+                      }
+                    },
+                    "description": "Includes the status for each instance of the resource"
+                  },
+                  "apiToken": {
+                    "type": "string",
+                    "description": "The token the App ID's workload uses to authenticate to Catalyst. Omitted unless the caller has the appIdCredentials.get permission, or appIdCredentials.list in a list response."
+                  },
+                  "appToken": {
+                    "type": "string",
+                    "description": "The token Catalyst sends when it calls the App ID's app endpoint, so the app can check that a request comes from Catalyst. Omitted when the App ID has no app endpoint, and unless the caller has the appIdCredentials.get permission, or appIdCredentials.list in a list response."
+                  },
+                  "resiliencyStatus": {
+                    "type": "object",
+                    "title": "AppStatusAppIdsItemStatusResiliencyStatus",
+                    "description": "The resiliency policies applied to the App ID.",
+                    "properties": {
+                      "retryPolicyName": {
+                        "type": "string",
+                        "description": "The retry policy applied."
+                      },
+                      "timeoutPolicyName": {
+                        "type": "string",
+                        "description": "The timeout policy applied."
+                      },
+                      "circuitBreakerPolicyName": {
+                        "type": "string",
+                        "description": "The circuit breaker policy applied."
+                      }
+                    }
+                  },
+                  "resiliency": {
+                    "type": "object",
+                    "title": "AppStatusAppIdsItemStatusResiliency",
+                    "description": "The desired state of a resiliency resource.",
+                    "properties": {
+                      "projectId": {
+                        "type": "string",
+                        "description": "The name of the project. Set by the server from the request path.",
+                        "x-immutable": true
+                      },
+                      "resiliencySpec": {
+                        "type": "object",
+                        "title": "AppStatusAppIdsItemStatusResiliencyResiliencySpec",
+                        "description": "The Dapr resiliency specification (policies and targets), based on the upstream Dapr Resiliency API. Fields present upstream but not listed here are not supported in Catalyst.",
+                        "properties": {
+                          "policies": {
+                            "type": "object",
+                            "title": "AppStatusAppIdsItemStatusResiliencyResiliencySpecPolicies",
+                            "description": "The named policies that targets refer to.",
+                            "properties": {
+                              "timeouts": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "string"
+                                },
+                                "description": "Timeout policies: a name mapped to a duration such as 5s."
+                              },
+                              "retries": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "title": "AppStatusAppIdsItemStatusResiliencyResiliencySpecPoliciesRetries",
+                                  "description": "A retry policy.",
+                                  "properties": {
+                                    "policy": {
+                                      "type": "string",
+                                      "description": "\"constant\" (a fixed wait between retries) or \"exponential\" (a wait that grows with each retry)."
+                                    },
+                                    "duration": {
+                                      "type": "string",
+                                      "description": "The wait between retries of a constant policy, such as 5s."
+                                    },
+                                    "maxInterval": {
+                                      "type": "string",
+                                      "description": "The longest wait between retries of an exponential policy, such as 60s."
+                                    },
+                                    "maxRetries": {
+                                      "type": "integer",
+                                      "description": "The number of retries. -1 retries without limit."
+                                    },
+                                    "matching": {
+                                      "type": "object",
+                                      "title": "AppStatusAppIdsItemStatusResiliencyResiliencySpecPoliciesRetriesMatching",
+                                      "description": "Specifies which status codes should trigger a retry. When set, only matching errors are retried; unmatched errors (e.g. 403) fail immediately instead of being retried into a timeout.",
+                                      "properties": {
+                                        "httpStatusCodes": {
+                                          "type": "string",
+                                          "description": "The HTTP status codes to retry, as a comma-separated list of codes and ranges such as \"429,500-504\"."
+                                        },
+                                        "gRPCStatusCodes": {
+                                          "type": "string",
+                                          "description": "The gRPC status codes to retry, as a comma-separated list of codes and ranges such as \"1-4,8-11\"."
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "description": "Retry policies, by name."
+                              },
+                              "circuitBreakers": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "title": "AppStatusAppIdsItemStatusResiliencyResiliencySpecPoliciesCircuitBreakers",
+                                  "description": "A circuit breaker policy.",
+                                  "properties": {
+                                    "maxRequests": {
+                                      "type": "integer",
+                                      "description": "The number of requests let through while the circuit is half-open."
+                                    },
+                                    "interval": {
+                                      "type": "string",
+                                      "description": "How often the failure counts are reset while the circuit is closed, such as 60s."
+                                    },
+                                    "timeout": {
+                                      "type": "string",
+                                      "description": "How long the circuit stays open before it becomes half-open, such as 30s."
+                                    },
+                                    "trip": {
+                                      "type": "string",
+                                      "description": "The condition that opens the circuit, for example \"consecutiveFailures \u003e 5\"."
+                                    }
+                                  }
+                                },
+                                "description": "Circuit breaker policies, by name."
+                              }
+                            }
+                          },
+                          "targets": {
+                            "type": "object",
+                            "title": "AppStatusAppIdsItemStatusResiliencyResiliencySpecTargets",
+                            "description": "Targets apply policies to App IDs and components.",
+                            "properties": {
+                              "apps": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "title": "AppStatusAppIdsItemStatusResiliencyResiliencySpecTargetsApps",
+                                  "description": "Holds the names of the policies applied to calls to an App ID.",
+                                  "properties": {
+                                    "timeout": {
+                                      "type": "string",
+                                      "description": "The name of a timeout policy."
+                                    },
+                                    "retry": {
+                                      "type": "string",
+                                      "description": "The name of a retry policy."
+                                    },
+                                    "circuitBreaker": {
+                                      "type": "string",
+                                      "description": "The name of a circuit breaker policy."
+                                    },
+                                    "circuitBreakerCacheSize": {
+                                      "type": "integer",
+                                      "description": "The number of circuit breakers kept for the App ID's instances."
+                                    }
+                                  }
+                                },
+                                "description": "Holds the policies applied to calls to an App ID, keyed by App ID name."
+                              },
+                              "components": {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "type": "object",
+                                  "title": "AppStatusAppIdsItemStatusResiliencyResiliencySpecTargetsComponents",
+                                  "description": "Holds the names of the policies applied to a component, by direction.",
+                                  "properties": {
+                                    "inbound": {
+                                      "type": "object",
+                                      "title": "AppStatusAppIdsItemStatusResiliencyResiliencySpecTargetsComponentsInbound",
+                                      "description": "Holds the name of one policy of each kind.",
+                                      "properties": {
+                                        "timeout": {
+                                          "type": "string",
+                                          "description": "The name of a timeout policy."
+                                        },
+                                        "retry": {
+                                          "type": "string",
+                                          "description": "The name of a retry policy."
+                                        },
+                                        "circuitBreaker": {
+                                          "type": "string",
+                                          "description": "The name of a circuit breaker policy."
+                                        }
+                                      }
+                                    },
+                                    "outbound": {
+                                      "type": "object",
+                                      "title": "AppStatusAppIdsItemStatusResiliencyResiliencySpecTargetsComponentsInbound",
+                                      "description": "Holds the name of one policy of each kind.",
+                                      "properties": {
+                                        "timeout": {
+                                          "type": "string",
+                                          "description": "The name of a timeout policy."
+                                        },
+                                        "retry": {
+                                          "type": "string",
+                                          "description": "The name of a retry policy."
+                                        },
+                                        "circuitBreaker": {
+                                          "type": "string",
+                                          "description": "The name of a circuit breaker policy."
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "description": "Holds the policies applied to a component, keyed by component name."
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "scopes": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "The App IDs that load the resiliency policies. Empty means every App ID in the project."
+                      }
+                    },
+                    "required": [
+                      "projectId",
+                      "resiliencySpec"
+                    ]
+                  },
+                  "spiffeId": {
+                    "type": "string",
+                    "description": "The single workload identity this App ID is reported under: the identity it is issued in the first of its project's regions by name. It does not move when a region is promoted, and a workload running in any other region of the project presents a different identity. Use regionIdentities to pre-trust the identity of every region instead of following this one."
+                  },
+                  "spiffeIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Every workload identity this App ID is issued, one per region its project is placed in, in the same order as regionIdentities. Deprecated: use regionIdentities instead, which names the region each identity belongs to."
+                  },
+                  "regionIdentities": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "title": "AppStatusAppIdsItemStatusRegionIdentitiesItem",
+                      "description": "An App ID's workload identity in one region.",
+                      "properties": {
+                        "region": {
+                          "type": "string",
+                          "description": "The region the identity is issued in. Read that region to get the OIDC issuer verifying JWTs minted for this identity, and the trust anchors verifying its certificates: both are region properties, served on the region's own status.endpoints."
+                        },
+                        "spiffeId": {
+                          "type": "string",
+                          "description": "The SPIFFE ID workloads of this App ID present in that region."
+                        }
+                      }
+                    },
+                    "description": "Lists the workload identity this App ID is issued in every region its project is placed in, one entry per region, ordered by region name. It is spiffeIds with the region each identity belongs to named, so a reader does not have to take it from the trust domain. Pre-trust every entry in an external identity federation: a project spread over a region group runs under a different identity in each of its regions, and which one a workload presents follows the region it runs in. The OIDC issuer that verifies JWTs minted for an identity is the region's, and is read from that region (status.endpoints.oidc)."
+                  },
+                  "externalBootstrapConfig": {
+                    "type": "string",
+                    "description": "The bootstrap YAML configuration for an external App ID. It contains everything an external workload needs to connect to the data plane, including the required endpoints and the join token, so it is omitted unless the caller has the appIdCredentials.get permission, or appIdCredentials.list in a list response."
+                  },
+                  "isActive": {
+                    "type": "boolean",
+                    "description": "Indicates if the App ID is active, if the sidecar has performed API operations recently"
+                  },
+                  "workflowsConnected": {
+                    "type": "boolean",
+                    "description": "Indicates if the App ID has workflow workers currently connected. It is only set when requested with include=workflowStatus, and is absent when that is unknown (no workers-connected metric series for the App ID)."
+                  },
+                  "clientType": {
+                    "type": "string",
+                    "description": "The identity-view classification of this App ID — \"app\", \"agent\", or \"mcpserver\"."
+                  },
+                  "appEndpointStatus": {
+                    "type": "string",
+                    "description": "Deprecated: use appHealthCheckStatus instead."
+                  },
+                  "appHealthCheckStatus": {
+                    "type": "object",
+                    "title": "AppStatusAppIdsItemStatusAppHealthCheckStatus",
+                    "description": "The result of the latest health check of the App ID's application.",
+                    "properties": {
+                      "ishealthy": {
+                        "type": "boolean",
+                        "description": "Whether the application passed the health check."
+                      },
+                      "timestamp": {
+                        "type": "string",
+                        "description": "When the health check ran."
+                      },
+                      "reason": {
+                        "type": "string",
+                        "description": "Explains why the application is not healthy."
+                      }
+                    }
+                  },
+                  "events": {
+                    "type": "object",
+                    "title": "AppStatusAppIdsItemStatusEvents",
+                    "description": "Recent events reported by the App ID's sidecar.",
+                    "properties": {
+                      "errors": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "title": "AppStatusAppIdsItemStatusEventsErrorsItem",
+                          "description": "One event reported by the App ID's sidecar.",
+                          "properties": {
+                            "cluster": {
+                              "type": "string",
+                              "description": "The name of the cluster the event originated from. In a public region or a dedicated region it is a cluster Diagrid operates; in a private region it is one of the clusters you joined to the region."
+                            },
+                            "message": {
+                              "type": "string",
+                              "description": "The text of the event."
+                            },
+                            "timestamp": {
+                              "type": "string",
+                              "format": "date-time",
+                              "description": "When the event happened."
+                            }
+                          }
+                        },
+                        "description": "The recent errors."
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "required": [
+              "apiVersion",
+              "kind",
+              "metadata",
+              "spec"
+            ]
+          },
+          "description": "Embeds the App's backing App ID, including its credentials (status.apiToken and status.appToken). Populated only when a Get request carries include=appids — matching Agent, DurableAgent and MCPServer, and the forward-compatible source for the deprecated inline token fields above."
+        }
+      }
+    }
+  },
+  "required": [
+    "spec"
+  ]
+}

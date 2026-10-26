@@ -34,8 +34,8 @@ public class ReadinessTests
         var details = await new CliCatalystProvisioner()
             .WaitForProjectReadyAsync("demo", TimeSpan.FromSeconds(10), default);
 
-        Assert.Equal(new Uri("https://http.r1.diagrid.io/v1/demo"), details.HttpEndpoint);
-        Assert.Equal(new Uri("https://grpc.r1.diagrid.io:7443/demo"), details.GrpcEndpoint);
+        Assert.Equal(new Uri("https://http-prj00000000.cloud.r1.diagrid.io:443"), details.HttpEndpoint);
+        Assert.Equal(new Uri("https://grpc-prj00000000.cloud.r1.diagrid.io:443"), details.GrpcEndpoint);
         Assert.Equal(2, ProjectGets(fake));
     }
 
@@ -123,8 +123,8 @@ public class ReadinessTests
 
         await handler.ProvisionCatalystAsync(default);
 
-        Assert.Equal("https://http.r1.diagrid.io/v1/demo", await project.HttpEndpoint.Task);
-        Assert.Equal("https://grpc.r1.diagrid.io:7443/demo", await project.GrpcEndpoint.Task);
+        Assert.Equal("https://http-prj00000000.cloud.r1.diagrid.io/", await project.HttpEndpoint.Task);
+        Assert.Equal("https://grpc-prj00000000.cloud.r1.diagrid.io/", await project.GrpcEndpoint.Task);
         Assert.Equal(3, ProjectGets(fake));
         Assert.Contains(CatalystLifecycleHandler.WaitingForProjectState, states.Snapshot());
     }

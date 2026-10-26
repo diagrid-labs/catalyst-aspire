@@ -112,6 +112,85 @@ public class FixtureNormaliserTests
         Assert.Equal("diagrid://mock-api-token", (string?)node["status"]!["appIds"]![0]!["status"]!["apiToken"]);
     }
 
+    // Catalyst resource ids are plain numbers, which the UUID pattern does not match, so the first real capture
+    // carried live ids and the hostnames built from them into fixtures bound for a public repo. They also change
+    // on every run, which on its own would make the nightly report drift every night forever.
+    [Theory]
+    [InlineData("""{"uid":"14272806"}""", "uid")]
+    [InlineData("""{"host":"grpc-prj14272806.cloud.r1.diagrid.io"}""", "host")]
+    [InlineData("""{"url":"https://http-prj14272806.cloud.r1.diagrid.io:443"}""", "url")]
+    [InlineData("""{"managed_by":"cra.diagrid.io/v1beta1/Agent/demo/14272819"}""", "managed_by")]
+    public void Numeric_resource_ids_do_not_survive_normalisation(string json, string key)
+    {
+        var text = ((string?)Clean(json)[key])!;
+
+        Assert.DoesNotContain("14272806", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("14272819", text, StringComparison.Ordinal);
+    }
+
+    // demo-agentcfg-283d6626: the suffix is generated per resource, so it differs on every capture.
+    [Fact]
+    public void Generated_hex_suffixes_do_not_survive_normalisation()
+    {
+        var text = ((string?)Clean("""{"appConfig":"demo-agentcfg-283d6626"}""")["appConfig"])!;
+
+        Assert.DoesNotContain("283d6626", text, StringComparison.Ordinal);
+        Assert.StartsWith("demo-agentcfg-", text, StringComparison.Ordinal);
+    }
+
+    // The cluster id appears both under its own key and inside every spiffeId, so masking the key alone is not
+    // enough -- it has to be replaced wherever it occurs, the way the throwaway resource names already are.
+    [Fact]
+    public void A_cluster_id_is_replaced_everywhere_it_appears()
+    {
+        const string json = """
+        {"status":{"instances":[{"cluster":"vxjiifii"}],
+         "spiffeId":"spiffe://vxjiifii.diagrid-aws-eu-west.global.public.diagrid.io/ns/prj-14272806/demo"}}
+        """;
+
+        var text = FixtureCapture.Normalise(JsonNode.Parse(json), FixtureCapture.NamesFor(json, Names), null)!.ToJsonString();
+
+        Assert.DoesNotContain("vxjiifii", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("14272806", text, StringComparison.Ordinal);
+    }
+
+    // `agent get` carries spiffeIds but no cluster key at all, so collecting only from that key left the real
+    // cluster id in all three of its spiffeIds. The cluster is also the first label of the URI.
+    [Fact]
+    public void A_cluster_id_is_masked_even_when_only_a_spiffe_id_mentions_it()
+    {
+        const string json = """
+        {"status":{"spiffeIds":["spiffe://vxjiifii.diagrid-aws-eu-west.global.public.diagrid.io/ns/prj-14272806/demo"]}}
+        """;
+
+        var text = FixtureCapture.Normalise(JsonNode.Parse(json), FixtureCapture.NamesFor(json, Names), null)!.ToJsonString();
+
+        Assert.DoesNotContain("vxjiifii", text, StringComparison.Ordinal);
+    }
+
+    // The whole point is a capture that is identical from one night to the next.
+    [Fact]
+    public void Two_captures_of_the_same_shape_with_different_ids_normalise_identically()
+    {
+        const string monday = """
+        {"metadata":{"uid":"14272806"},"status":{"instances":[{"cluster":"vxjiifii"}],
+         "spiffeId":"spiffe://vxjiifii.x/ns/prj-14272806/demo",
+         "endpoints":{"http":{"host":"http-prj14272806.cloud.r1.diagrid.io"}}},
+         "spec":{"appConfig":"demo-agentcfg-283d6626"}}
+        """;
+        const string friday = """
+        {"metadata":{"uid":"98311742"},"status":{"instances":[{"cluster":"qqzzbbnn"}],
+         "spiffeId":"spiffe://qqzzbbnn.x/ns/prj-98311742/demo",
+         "endpoints":{"http":{"host":"http-prj98311742.cloud.r1.diagrid.io"}}},
+         "spec":{"appConfig":"demo-agentcfg-9f10ab77"}}
+        """;
+
+        static string Run(string json)
+            => FixtureCapture.Normalise(JsonNode.Parse(json), FixtureCapture.NamesFor(json, Names), null)!.ToJsonString();
+
+        Assert.Equal(Run(monday), Run(friday));
+    }
+
     // Guards the widened pattern: it must still only match timestamps.
     [Theory]
     [InlineData("not a date")]

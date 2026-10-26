@@ -1,5 +1,5 @@
 {
-  "_capturedFrom": "hand-built, not captured from a real CLI run: modelled on the CLI golden structure, 2026-10-21; the version number 1.85.0 is a claimed floor, not a capture record; Task 16 re-captures from a real CLI. Timestamp FORMAT is the exception: space-separated YYYY-MM-DD HH:MM:SS on metadata.*, with a millisecond fraction on status.updatedAt, verified against CLI 1.109.0 on a live account 2026-10-21 (26 projects, 6 apps) -- these fixtures previously used ISO 8601, which the CLI does not emit. status.endpoints is deliberately absent: the CLI omits it until the project is serving.",
+  "_capturedFrom": "hand-built and STAYS hand-built: this models a transient or failure state a healthy account cannot be made to produce, so the nightly capture never overwrites it. Its sibling fixtures were captured from CLI 1.111.0 on 2026-10-23 and carry the real shape; this one is shaped by hand to match and will drift from reality silently, so compare it against a captured sibling when the CLI changes. status.endpoints is deliberately absent: the CLI omits it until the project is serving.",
   "apiVersion": "cra.diagrid.io/v1beta1",
   "kind": "Project",
   "metadata": {

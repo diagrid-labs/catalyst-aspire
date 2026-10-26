@@ -1,0 +1,415 @@
+## diagrid project create --help
+
+Create new project in an existing organization
+
+With --duplicate, the new project is a copy of an existing project's
+configuration: its settings and resources, such as App IDs, components,
+subscriptions and HTTP endpoints. Runtime data is not copied. State,
+key/value data, pub/sub messages and workflow history stay in the source
+project, and the copy starts empty.
+
+Usage:
+  diagrid project create <project-name> [flags]
+
+Examples:
+
+  # Create a project in the default region with a Diagrid Pub/Sub Broker and Diagrid Key/Value store
+  diagrid project create my-project --deploy-managed-pubsub --deploy-managed-kv
+  
+  # Create a project in a specific region
+  diagrid project create my-project --region aws-us-west	
+
+  # Create a project across every region of a region group
+  diagrid project create my-project --region-group prod-us
+
+  # Create a project with managed workflow enabled
+  diagrid project create my-project --enable-managed-workflow
+
+  # Create a project with a custom max body size for all ids
+  diagrid project create my-project --global-id-max-body-size 8Mi
+
+  # Create a project with workflow history signing enabled
+  diagrid project create my-project --enable-workflow-history-signing
+
+  # Create a copy of an existing project, with its settings and resources
+  diagrid project create my-copy --duplicate my-project
+
+  # Copy a project into another region and wait until all its resources are copied
+  diagrid project create my-copy --duplicate my-project --region aws-eu-west --wait
+
+
+Flags:
+  -r, --region string                     Region ID where the project will be deployed
+      --deploy-managed-pubsub             Deploy a Diagrid Pub/Sub Broker for use with the Pub/Sub API
+      --deploy-managed-kv                 Deploy a Diagrid Key/Value Store for use with the Key/Value API
+      --enable-managed-workflow           Enable Workflow API by leveraging a Diagrid-managed state store used by the workflow engine. Alternatively, enable Workflow support by providing an external component to a transactional state store
+      --enable-workflow-history-signing   Enable workflow history signing for this project. Can only be set at creation time
+  -w, --wait                              Wait for long-running resource creation to finish
+      --use                               Set the created project as the default project for the current context
+      --disable-app-tunnels               Disable app tunnels for this project
+      --global-id-max-body-size string    Maximum body size for HTTP and gRPC requests across all ids in this project (e.g., "4Mi", "8Mi", "16Mi"). Can be overridden at the individual id level
+      --ignore-if-exists                  Exit with success if the project already exists instead of returning an error
+      --region-group string               Region group to place the project across, instead of a single region. Mutually exclusive with --region, and immutable once the project exists.
+      --duplicate string                  Create the project as a copy of this existing project's settings and resources. Runtime data such as state, messages and workflow history is not copied. Use --region or --region-group to place the copy somewhere other than the source
+  -h, --help                              help for create
+
+Global Flags:
+      --api-key string   Diagrid Cloud API key
+
+## diagrid project get --help
+
+Get details for a project
+
+Usage:
+  diagrid project get <project-name> [flags]
+
+Examples:
+
+  # Get high-level details for a specific project
+  diagrid project get my-project	
+
+  # Get high-level project details and list all project resources for your current project
+  diagrid project get --all
+
+
+Flags:
+  -a, --all             View summarized list of project resources
+  -o, --output string   Output format, supported [table, yaml, json] (default "table")
+  -h, --help            help for get
+
+Global Flags:
+      --api-key string   Diagrid Cloud API key
+
+## diagrid project delete --help
+
+Delete one or more projects from an organization
+
+Usage:
+  diagrid project delete <projectid...> [flags]
+
+Examples:
+
+  # Delete a single project
+  diagrid project delete my-project
+  
+  # Delete multiple projects
+  diagrid project delete my-project1 my-project2 my-project3
+
+
+Flags:
+  -w, --wait      Wait for long-running resource deletion to finish
+      --approve   Skip confirmation prompt
+  -y, --yes       Skip confirmation prompt
+  -h, --help      help for delete
+
+Global Flags:
+      --api-key string   Diagrid Cloud API key
+
+## diagrid app create --help
+Create an App in a project.
+
+Usage:
+  diagrid app create <app> [flags]
+
+Examples:
+
+  # Create an identity-only App (no endpoint)
+  diagrid app create my-app --project my-project
+
+  # Create an App with an endpoint
+  diagrid app create my-app --project my-project --endpoint https://myapp.myorg.com/ --endpoint-token xxxxxxxx
+
+  # Create an App with workflow-history archiving enabled
+  diagrid app create my-app --project my-project --archive-binding-name archive-store --archive-binding-type bindings.aws.s3 --enable-workflow-archive completed,failed
+
+  # Create an App that raises a notification for failed and stalled workflows
+  diagrid app create my-app --project my-project --enable-workflow-notifications FAILED --enable-workflow-notifications STALLED
+
+  # Create an App that loads the Dapr Configuration "tracing-config"
+  diagrid app create my-app --project my-project --app-config tracing-config
+
+  # Create an App whose workload pod carries a label and a managed-identity annotation (self-hosted regions only)
+  diagrid app create my-app --project my-project --label team=orders --annotation azure.workload.identity/client-id=00000000-0000-0000-0000-000000000000
+
+
+Flags:
+  -p, --project string                          Name of existing project
+  -e, --endpoint string                         Endpoint used to establish outbound connectivity from the App to your external application
+  -t, --endpoint-token string                   Token used to secure calls from the App to your provided endpoint
+      --endpoint-protocol string                Protocol used to interact with the endpoint: http (default) or grpc
+      --max-body-size string                    Maximum request body size (e.g. "4Mi", "16Mi")
+      --app-channel-timeout-seconds int32       Timeout in seconds for the sidecar to connect to the application endpoint
+  -c, --app-config string                       Name of the Dapr Configuration the App loads, e.g. for tracing, access control or feature flags. It is the Configuration "diagrid app access" edits, so Apps bound to the same Configuration share its access rules
+      --enable-app-health-check                 Enable application-level health probing
+      --app-health-check-path string            Health check endpoint path (e.g. /healthz)
+      --app-health-probe-interval int32         Health probe interval in seconds
+      --app-health-probe-timeout int32          Health probe timeout in milliseconds
+      --app-health-threshold int32              Failure threshold before marking unhealthy
+  -w, --wait                                    Wait for long-running resource creation to finish
+      --ignore-if-exists                        Exit with success if the App already exists instead of returning an error
+      --archive-binding-name string             Output-binding component name to write archived workflow history through. Setting this enables archiving
+      --archive-binding-type string             Binding component type for the archive destination (e.g., "bindings.aws.s3")
+      --enable-workflow-archive strings         Workflow statuses to archive: COMPLETED, FAILED, TERMINATED. Comma-separated or repeated. Statuses not listed are not archived
+      --workflow-notifications-name string      Regular expression the workflow name must match in full for a notification to be raised. Empty matches every workflow
+      --enable-workflow-notifications strings   Workflow statuses to raise a notification for: FAILED, TERMINATED, STALLED. Comma-separated or repeated. Statuses not listed raise no notification
+      --workflow-notifications-root-only        Only raise notifications for workflows with no parent
+      --label stringToString                    Label (key=value) applied to the App's workload pod and service account. Repeatable. Only supported in self-hosted regions (default [])
+      --annotation stringToString               Annotation (key=value) applied to the App's workload pod and service account, e.g. for managed identity. Repeatable. Only supported in self-hosted regions (default [])
+  -h, --help                                    help for create
+
+Global Flags:
+      --api-key string   Diagrid Cloud API key
+
+## diagrid app get --help
+
+Show details for an App in a project.
+
+Usage:
+  diagrid app get <app> [flags]
+
+Examples:
+
+  # Get details for a specific App
+  diagrid app get my-app --project my-project
+
+  # Also list the components and subscriptions the App can use
+  diagrid app get my-app --project my-project --all
+
+  # Include whether the App is taking traffic
+  diagrid app get my-app --project my-project --include-activity
+
+
+Flags:
+  -p, --project string     Name of existing project
+  -a, --all                Also list the components and subscriptions the App can use
+  -o, --output string      Output format, supported [table, yaml, json] (default "table")
+      --include-activity   Include whether the App served or sent any request in the last 5 minutes
+  -h, --help               help for get
+
+Global Flags:
+      --api-key string   Diagrid Cloud API key
+
+## diagrid agent create --help
+Create an Agent in a project.
+
+Usage:
+  diagrid agent create <agent> [flags]
+
+Examples:
+
+  # Create an identity-only Agent (no endpoint)
+  diagrid agent create my-agent --project my-project
+
+  # Create an Agent with an endpoint
+  diagrid agent create my-agent --project my-project --endpoint https://myagent.myorg.com/
+
+
+Flags:
+  -p, --project string                    Name of existing project
+  -e, --endpoint string                   Endpoint used to establish outbound connectivity from the Agent to your external application
+  -t, --endpoint-token string             Token used to secure calls from the Agent to your provided endpoint
+      --endpoint-protocol string          Protocol used to interact with the endpoint: http (default) or grpc
+  -w, --wait                              Wait for long-running resource creation to finish
+      --ignore-if-exists                  Exit with success if the Agent already exists instead of returning an error
+      --archive-binding-name string       Output-binding component name to write archived workflow history through. Setting this enables archiving
+      --archive-binding-type string       Binding component type for the archive destination (e.g., "bindings.aws.s3")
+      --enable-workflow-archive strings   Workflow statuses to archive: COMPLETED, FAILED, TERMINATED. Comma-separated or repeated. Statuses not listed are not archived
+  -h, --help                              help for create
+
+Global Flags:
+      --api-key string   Diagrid Cloud API key
+
+## diagrid agent get --help
+
+Show details for an Agent in a project.
+
+Usage:
+  diagrid agent get <agent> [flags]
+
+Examples:
+
+  # Get details for a specific Agent
+  diagrid agent get my-agent --project my-project
+
+  # Also list the components and subscriptions the Agent can use
+  diagrid agent get my-agent --project my-project --all
+
+  # Include whether the Agent is taking traffic
+  diagrid agent get my-agent --project my-project --include-activity
+
+
+Flags:
+  -p, --project string     Name of existing project
+  -a, --all                Also list the components and subscriptions the Agent can use
+  -o, --output string      Output format, supported [table, yaml, json] (default "table")
+      --include-activity   Include whether the Agent served or sent any request in the last 5 minutes
+  -h, --help               help for get
+
+Global Flags:
+      --api-key string   Diagrid Cloud API key
+
+## diagrid appid get --help
+
+Show details for an App ID in a project.
+
+Usage:
+  diagrid appid get <app-id> [flags]
+
+Examples:
+
+  # Get details for a specific App ID
+  diagrid appid get my-appid --project my-project --all
+
+  diagrid appid get my-appid --project my-project
+
+
+Flags:
+  -p, --project string     Name of existing project
+  -a, --all                Get a more in depth summary view of App ID
+  -o, --output string      Output format, supported [table, yaml, json] (default "table")
+      --include-activity   Include appid activity in the response
+  -h, --help               help for get
+
+Global Flags:
+      --api-key string   Diagrid Cloud API key
+
+## diagrid component create --help
+
+Create a new infrastructure component to use with the Catalyst APIs in a project
+
+Usage:
+  diagrid component create <component> [flags]
+
+Examples:
+
+  # Create new component using the interactive prompt (Recommended)
+  # Runs automatically when no name and no flags are supplied; --interactive forces it.
+  diagrid component create
+  diagrid component create --interactive
+
+  # Create new pub/sub component targeting Redis
+  diagrid component create my-pubsub --type pubsub.redis --metadata redisHost=https://endpoint --metadata redisPassword=pwd --scopes app1,app2
+
+  # Create new secret store component targeting Azure Key Vault
+  diagrid component create my-keyvault --type secretstores.azure.keyvault --metadata vaultName=my-vault --metadata azureTenantId=tenant-id --metadata azureClientId=client-id --metadata azureClientSecret=client-secret --metadata azureEnvironment=AzurePublicCloud --scopes app1,app2
+
+
+Flags:
+  -t, --type string            Component type supported: pubsub.xxxx , state.xxxx , bindings.xxxx , secretstores.xxxx , conversation.xxxx
+      --metadata stringArray   Component metadata (e.g. --metadata host=localhost:3300 --metadata apiToken=foo )
+      --scopes strings         Component scopes, list of ids which will have access to this component. Leave empty for giving access to all ids.
+  -p, --project string         Name of existing project
+  -w, --wait                   Wait for long-running resource creation to finish
+      --interactive            Create new component using an interactive prompt (Recommended)
+      --ignore-if-exists       Exit with success if the component already exists instead of returning an error
+  -h, --help                   help for create
+
+Global Flags:
+      --api-key string   Diagrid Cloud API key
+
+## diagrid pubsub create --help
+Create a Diagrid pub/sub broker to send and receive messages without managing infrastructure.
+
+Usage:
+  diagrid pubsub create <pubsub> [flags]
+
+Examples:
+
+  # Create a pub/sub broker in a project
+  diagrid pubsub create my-pubsub --project my-project
+  
+
+Flags:
+  -p, --project string     Name of existing project
+      --scopes strings     Component scopes, list of ids which will have access to the component created to this Pubsub. Leave empty for giving access to all ids.
+  -w, --wait               Wait for long-running resource creation to finish
+      --ignore-if-exists   Exit with success if the Pub/Sub Broker already exists instead of returning an error
+  -h, --help               help for create
+
+Global Flags:
+      --api-key string   Diagrid Cloud API key
+
+## diagrid kv create --help
+Create a Diagrid key-value store to persist state without managing infrastructure.
+
+Usage:
+  diagrid kv create <kv-store> [flags]
+
+Examples:
+
+  # Create a key-value store in a project
+  diagrid kv create my-kv-store --project my-project
+
+
+Flags:
+  -p, --project string     Name of existing project
+      --scopes strings     Component scopes, list of ids which will have access to the default component created for this KV Store. Leave empty to allow access from all ids.
+  -w, --wait               Wait for long-running resource creation to finish
+      --ignore-if-exists   Exit with success if the KV Store already exists instead of returning an error
+  -h, --help               help for create
+
+Global Flags:
+      --api-key string   Diagrid Cloud API key
+
+## diagrid subscription create --help
+
+Create topic subscription targeting a pub/sub component in a project
+
+Usage:
+  diagrid subscription create <subscription> [flags]
+
+Examples:
+
+  # Create pub/sub topic subscription
+  diagrid subscription create my-subscription --component my-pubsub --topic my-topic --route /method --scopes my-id
+
+
+Flags:
+  -c, --component string                   Name of the target pub/sub component
+  -t, --topic string                       Name of the topic
+  -r, --route string                       Route in the app code where messages will be delivered
+  -s, --scopes strings                     List of ids which will subscribe to the topic (must exist in project and have access to pubsub broker)
+  -b, --bulk                               Enable bulk subscription
+  -m, --bulk-max-messages-count int        Maximum number of messages to be sent in a single bulk subscription
+  -a, --bulk-max-await-duration duration   Maximum duration to wait for messages to be sent in a single bulk subscription
+  -p, --project string                     Name of existing project
+  -w, --wait                               Wait for long-running resource creation to finish
+  -h, --help                               help for create
+
+Global Flags:
+      --api-key string   Diagrid Cloud API key
+
+## diagrid subscription update --help
+
+Update topic subscription for a pub/sub component in a project
+
+Usage:
+  diagrid subscription update <subscription> [flags]
+
+Examples:
+
+  # Update the default route where messages sent to the topic subscription are delivered
+  diagrid subscription update my-subscription --route /method
+  
+  # Update the target pub/sub topic to which scoped applications will subscribe
+  diagrid subscription update my-subscription --topic my-topic
+  
+  # Update the list of subscribing applications for the topic subscription
+  diagrid subscription update my-subscription --scopes my-id-1,my-id-2
+
+
+Flags:
+  -t, --topic string                       Name of the target pub/sub topic
+  -r, --route string                       Route in the app code where messages will be delivered
+  -s, --scopes strings                     List of subscribing ids. ids must exist in project and have access to the pub/sub component
+  -c, --component string                   Name of the target pub/sub component
+  -b, --bulk                               Enable bulk subscription
+  -m, --bulk-max-messages-count int        Maximum number of messages to be sent in a single bulk subscription
+  -a, --bulk-max-await-duration duration   Maximum duration to wait for messages to be sent in a single bulk subscription
+  -p, --project string                     Name of existing project
+  -w, --wait                               Wait for long-running resource update to finish
+  -h, --help                               help for update
+
+Global Flags:
+      --api-key string   Diagrid Cloud API key
+
