@@ -1,5 +1,5 @@
 {
-  "_capturedFrom": "diagrid CLI 1.111.0, captured by the nightly workflow",
+  "_capturedFrom": "diagrid CLI 1.112.0, captured by the nightly workflow",
   "apiVersion": "cra.diagrid.io/v1beta1",
   "kind": "Project",
   "metadata": {
