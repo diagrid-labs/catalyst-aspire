@@ -1,5 +1,5 @@
 {
-  "_capturedFrom": "diagrid CLI 1.112.0, captured by the nightly workflow",
+  "_capturedFrom": "diagrid CLI 1.117.0, captured by the nightly workflow",
   "apiVersion": "cra.diagrid.io/v1beta1",
   "kind": "App",
   "metadata": {
@@ -50,7 +50,7 @@
               "cluster": "demo",
               "placementId": "0",
               "region": "diagrid-aws-eu-west",
-              "status": "ready",
+              "status": "provisioning",
               "updatedAt": "2026-01-01 00:00:00"
             }
           ],
@@ -69,7 +69,7 @@
           "spiffeIds": [
             "spiffe://demo.diagrid-aws-eu-west.global.public.diagrid.io/ns/prj-00000000/demo"
           ],
-          "status": "ready",
+          "status": "provisioning",
           "updatedAt": "2026-01-01 00:00:00"
         }
       }
@@ -79,11 +79,11 @@
         "cluster": "demo",
         "placementId": "0",
         "region": "diagrid-aws-eu-west",
-        "status": "ready",
+        "status": "provisioning",
         "updatedAt": "2026-01-01 00:00:00"
       }
     ],
-    "status": "ready",
+    "status": "provisioning",
     "updatedAt": "2026-01-01 00:00:00"
   }
 }
