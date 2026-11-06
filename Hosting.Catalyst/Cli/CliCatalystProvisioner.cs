@@ -118,7 +118,7 @@ public class CliCatalystProvisioner : ICatalystProvisioner
             if (remaining <= TimeSpan.Zero)
             {
                 throw new TimeoutException(
-                    $"Catalyst project '{projectName}' did not report endpoints after {stopwatch.Elapsed.TotalSeconds:F0}s "
+                    $"Diagrid project '{projectName}' did not report endpoints after {stopwatch.Elapsed.TotalSeconds:F0}s "
                     + "(it may still be starting; re-run once it is ready).");
             }
 

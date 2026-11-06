@@ -61,7 +61,7 @@ public class AppHostShapeTests
         Assert.Equal(useCatalyst, !api.Resource.Annotations.OfType<DaprSidecarAnnotation>().Any());
     }
 
-    // Mutation: ignore USE_CATALYST in UseCatalystAsync() -> the true row sees no Catalyst project.
+    // Mutation: ignore USE_CATALYST in UseCatalystAsync() -> the true row sees no Diagrid project.
     [Theory]
     [InlineData("true", true)]
     [InlineData("false", false)]
@@ -132,8 +132,8 @@ public class AppHostShapeTests
         Assert.Contains("GetStateAsync<Order?>(StateStore, ", source, StringComparison.Ordinal);
         Assert.Contains(".WithTopic(PubSub, Topic)", source, StringComparison.Ordinal);
 
-        // The pitch: service code is identical on both sides, so it never looks at the switch or at Catalyst.
-        // Mutation: add a USE_CATALYST / Configuration branch or a Catalyst reference to TestApi.
+        // The pitch: service code is identical on both sides, so it never looks at the switch or at Diagrid.
+        // Mutation: add a USE_CATALYST / Configuration branch or a Diagrid reference to TestApi.
         Assert.DoesNotContain("USE_CATALYST", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Catalyst", source, StringComparison.Ordinal);
     }
@@ -141,7 +141,7 @@ public class AppHostShapeTests
     // Workflows are durable through the managed workflows-state component; a second flagged store would make
     // which one backs workflows nondeterministic. The KV descriptor has no actor flag, so assert that no extra
     // user component was registered that could carry one.
-    // Mutation: add a WithComponent state store to the Catalyst branch, or drop EnableManagedWorkflow.
+    // Mutation: add a WithComponent state store to the Diagrid branch, or drop EnableManagedWorkflow.
     [Fact]
     public void Workflows_rely_on_the_managed_store_alone()
     {

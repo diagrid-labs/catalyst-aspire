@@ -18,7 +18,7 @@ public static class DemoWiring
     public const string SubscriptionRoute = "/orders/received";
 
     /// <summary>
-    ///     The state store component name both sides of the switch use, defined as Catalyst's own default so the
+    ///     The state store component name both sides of the switch use, defined as Diagrid's own default so the
     ///     two cannot drift. The Dapr OSS side is named to match (see Resources/kvstore.yaml) rather than the
     ///     other way round, because the default is not arbitrary: creating a project's first agent provisions a
     ///     managed KV store called <c>kvstore</c>, and an organization capped at one KV store per project cannot

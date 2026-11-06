@@ -16,11 +16,11 @@ internal sealed class CatalystLifecycleHandler(
     ICatalystProvisioner provisioner
 )
 {
-    /// <summary>The component type that fronts a Catalyst-managed KV store, and the metadata key naming the store.</summary>
+    /// <summary>The component type that fronts a Diagrid-managed KV store, and the metadata key naming the store.</summary>
     internal const string ManagedStateStoreType = "state.diagrid";
     internal const string ManagedStateInfraKey = "state";
 
-    /// <summary>The component type that fronts a Catalyst-managed pub/sub broker, and the key naming the broker.</summary>
+    /// <summary>The component type that fronts a Diagrid-managed pub/sub broker, and the key naming the broker.</summary>
     internal const string ManagedPubSubType = "pubsub.diagrid";
     internal const string ManagedPubSubInfraKey = "pubsub";
 
@@ -75,7 +75,7 @@ internal sealed class CatalystLifecycleHandler(
             _logger.LogInformation("{Logo}", "\n" + LogoPicker.PickRandomLogo() + "\n");
         }
 
-        _logger.LogInformation("Welcome to the Catalyst Aspire integration!");
+        _logger.LogInformation("Welcome to the Diagrid Aspire integration!");
         _logger.LogInformation("Hang on as your environment is provisioned...");
     }
 
@@ -441,7 +441,7 @@ internal sealed class CatalystLifecycleHandler(
             State = new(KnownResourceStates.Finished, KnownResourceStateStyles.Success),
         });
 
-        _logger.LogInformation("Catalyst has been successfully initialized!");
+        _logger.LogInformation("Diagrid has been successfully initialized!");
 
         await notifications.PublishUpdateAsync(catalystProject, (previous) => previous with
         {

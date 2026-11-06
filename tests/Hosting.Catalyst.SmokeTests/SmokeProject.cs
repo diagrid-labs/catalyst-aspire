@@ -2,7 +2,7 @@ using Diagrid.Aspire.Hosting.Catalyst.Cli;
 
 namespace Hosting.Catalyst.SmokeTests;
 
-/// <summary>Shared plumbing for tests that touch a real Catalyst account.</summary>
+/// <summary>Shared plumbing for tests that touch a real Diagrid account.</summary>
 internal static class SmokeProject
 {
     /// <summary>Every throwaway project carries this prefix; the delete path refuses anything else.</summary>

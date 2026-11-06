@@ -112,7 +112,7 @@ public class FixtureNormaliserTests
         Assert.Equal("diagrid://mock-api-token", (string?)node["status"]!["appIds"]![0]!["status"]!["apiToken"]);
     }
 
-    // Catalyst resource ids are plain numbers, which the UUID pattern does not match, so the first real capture
+    // Diagrid resource ids are plain numbers, which the UUID pattern does not match, so the first real capture
     // carried live ids and the hostnames built from them into fixtures bound for a public repo. They also change
     // on every run, which on its own would make the nightly report drift every night forever.
     [Theory]

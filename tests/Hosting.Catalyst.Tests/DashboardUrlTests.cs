@@ -29,7 +29,7 @@ public class DashboardUrlTests
         var project = builder.AddCatalystProject("demo");
 
         var url = Assert.Single(project.Resource.Annotations.OfType<ResourceUrlAnnotation>());
-        Assert.Equal("Catalyst Dashboard", url.DisplayText);
+        Assert.Equal("Diagrid Console", url.DisplayText);
         Assert.Equal(
             Ext.DashboardUrl(Environment.GetEnvironmentVariable("DIAGRID_URL")),
             url.Url);

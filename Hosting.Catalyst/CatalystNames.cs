@@ -11,7 +11,7 @@ internal static partial class CatalystNames
     private const int HashLength = 8;
 
     /// <summary>
-    ///     Rejects an Aspire resource name Catalyst would refuse as an app id, so the error names the
+    ///     Rejects an Aspire resource name Diagrid would refuse as an app id, so the error names the
     ///     resource the developer typed rather than arriving later from the CLI.
     /// </summary>
     /// <param name="resourceName">The Aspire resource name to validate.</param>
@@ -27,13 +27,13 @@ internal static partial class CatalystNames
         }
 
         throw new ArgumentException(
-            $"The Aspire resource name '{resourceName}' cannot be used as a Catalyst app id. Names must be 1 to 63 characters: "
+            $"The Aspire resource name '{resourceName}' cannot be used as a Diagrid app id. Names must be 1 to 63 characters: "
             + "lowercase letters, digits and '-', starting and ending with a letter or digit (for example 'test-api', not 'Test_Api').",
             nameof(resourceName));
     }
 
     /// <summary>
-    ///     The Catalyst subscription name for an app, pub/sub component and topic: <c>{app}-{component}-{topic}</c>,
+    ///     The Diagrid subscription name for an app, pub/sub component and topic: <c>{app}-{component}-{topic}</c>,
     ///     lowercased with every run of characters outside <c>[a-z0-9]</c> collapsed to <c>-</c>, so it is a DNS label.
     ///     Over 63 characters it is cut and a hash of the unsanitised triple is appended, so two long names that share a
     ///     prefix stay distinct and the same inputs always give the same name.

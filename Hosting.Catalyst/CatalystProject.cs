@@ -11,13 +11,13 @@ namespace Diagrid.Aspire.Hosting.Catalyst;
 public class CatalystProject : IResource
 {
     /// <summary>
-    ///     The label of the resource in Aspire. See ProjectName for the label that will be used in Catalyst.
+    ///     The label of the resource in Aspire. See ProjectName for the label that will be used in Diagrid.
     /// </summary>
     public string Name => $"catalyst-{ProjectName}";
     public ResourceAnnotationCollection Annotations { get; init; } = [];
 
     /// <summary>
-    ///     The label of the project in Catalyst. See Name for the label that will be used in Aspire.
+    ///     The label of the project in Diagrid. See Name for the label that will be used in Aspire.
     /// </summary>
     public required string ProjectName { get; init; }
 
@@ -32,6 +32,6 @@ public class CatalystProject : IResource
 }
 
 /// <summary>
-///     A Catalyst identity (app or agent) that an Aspire resource is backed by, and the details resolved once provisioned.
+///     A Diagrid identity (app or agent) that an Aspire resource is backed by, and the details resolved once provisioned.
 /// </summary>
 internal record CatalystIdentity(IdentityKind Kind, TaskCompletionSource<AppDetails> Details);

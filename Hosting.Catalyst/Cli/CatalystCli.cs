@@ -27,7 +27,7 @@ internal static class CatalystCli
             arguments,
             -1,
             string.Empty,
-            "The 'diagrid' CLI was not found. This integration provisions Catalyst by running it, so install the "
+            "The 'diagrid' CLI was not found. This integration provisions Diagrid by running it, so install the "
                 + $"Diagrid CLI, make sure it is on your PATH, and restart the AppHost. Installation instructions: {DocsUrl}",
             inner);
 
