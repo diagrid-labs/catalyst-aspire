@@ -11,13 +11,13 @@
         <IsPackable>true</IsPackable>
         <PackageIcon>/catalyst-logo.png</PackageIcon>
         <PackageReadmeFile>readme.md</PackageReadmeFile>
-        <RepositoryUrl>https://github.com/diagrid-labs/catalyst-aspire</RepositoryUrl>
+        <RepositoryUrl>https://github.com/diagrid-labs/diagrid-aspire</RepositoryUrl>
         <!--
             Without an explicit Description, MSBuild packs the literal placeholder "Package Description".
             Every version published so far (0.0.1 through 1.0.0) carries it on nuget.org.
         -->
         <Description>.NET Aspire hosting integration for Diagrid. Declare a Diagrid project, apps, agents, managed KV stores and pub/sub brokers, components and subscriptions in your AppHost, and the integration provisions them through the Diagrid CLI when you run it. Built so that moving a Dapr OSS service to Diagrid needs no change to the service's own code.</Description>
-        <PackageProjectUrl>https://github.com/diagrid-labs/catalyst-aspire</PackageProjectUrl>
+        <PackageProjectUrl>https://github.com/diagrid-labs/diagrid-aspire</PackageProjectUrl>
         <PackageTags>aspire;dapr;diagrid;catalyst;distributed-applications;workflow;pubsub;statestore</PackageTags>
         <!--
             SPDX expression rather than PackageLicenseFile: nuget.org renders it as a known licence on the
