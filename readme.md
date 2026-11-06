@@ -332,6 +332,6 @@ Renaming `CatalystProvisioner` to `ICatalystProvisioner` and adding the `Async` 
 
 ## Additional Resources
 
-See an example of this integration being used in the [Diagrid Workflows demo](https://github.com/diagrid-labs/catalyst-order-workflow-dotnet).
+See an example of this integration being used in the [Diagrid Workflows demo](https://github.com/diagrid-labs/diagrid-order-workflow-dotnet).
 
 In the `AppHost` demo in this repository, the OSS side of the `USE_CATALYST` switch keeps workflow state and order state in one **in-memory** store. Workflows are **not durable across a sidecar restart there**. The crash-and-resume demonstration only works on the Diagrid side.
