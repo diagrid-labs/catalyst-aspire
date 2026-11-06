@@ -109,7 +109,7 @@ jobs:
           # A revoked key then surfaced three steps later as "Invalid token: apikey not found" from whichever
           # command happened to run first. whoami is the cheapest real call, so the key is proven here instead.
           if ! diagrid whoami --no-color=true > /dev/null 2>&1; then
-            echo "::error title=Invalid CATALYST_API_KEY::diagrid login succeeded but 'diagrid whoami' failed, so the stored key is not accepted by the server. The key is structurally valid (login parses the org id from it) but revoked, deleted, or from another environment. Regenerate it in the Diagrid Web Console and update the CATALYST_API_KEY secret."
+            echo "::error title=Invalid CATALYST_API_KEY::diagrid login succeeded but 'diagrid whoami' failed, so the stored key is not accepted by the server. The key is structurally valid (login parses the org id from it) but revoked, deleted, or from another environment. Regenerate it in the Diagrid Console and update the CATALYST_API_KEY secret."
             exit 1
           fi
 

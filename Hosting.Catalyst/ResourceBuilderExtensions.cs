@@ -43,7 +43,7 @@ public static class ResourceBuilderExtensions
         catalystProject.WithAnnotation(new ResourceUrlAnnotation
         {
             Url = DashboardUrl(Environment.GetEnvironmentVariable(DiagridUrlVariable)),
-            DisplayText = "Diagrid Web Console",
+            DisplayText = "Diagrid Console",
         });
 
         catalystProject.OnInitializeResource(async (resource, initializeResourceEvent, cancellationToken) =>

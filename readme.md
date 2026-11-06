@@ -72,13 +72,13 @@ builder
     .WithCatalystApp();
 ```
 
-Each resource that you tag in this way will automatically have an application entry created in the Diagrid Web Console. Use `WithCatalystAgent()` instead to register the resource as a Diagrid agent — support for that depends on the Diagrid deployment, and where there is no agent API, provisioning fails naming the resource. `WithCatalyst()` is an equivalent alias of `WithCatalystApp()`.
+Each resource that you tag in this way will automatically have an application entry created in the Diagrid Console. Use `WithCatalystAgent()` instead to register the resource as a Diagrid agent — support for that depends on the Diagrid deployment, and where there is no agent API, provisioning fails naming the resource. `WithCatalyst()` is an equivalent alias of `WithCatalystApp()`.
 
 Resources with no HTTP endpoint, such as workflow-only workers, are supported.
 
 **Resource names are validated.** A name that is not a valid Diagrid name is rejected, as is one whose derived `{name}-catalyst-proxy` resource would exceed Aspire's 64-character limit — so names longer than 49 characters.
 
-The link to the Diagrid Web Console is derived from the `DIAGRID_URL` variable, using the same rules as the Diagrid CLI. For the default API URL it points at `catalyst.diagrid.io`.
+The link to the Diagrid Console is derived from the `DIAGRID_URL` variable, using the same rules as the Diagrid CLI. For the default API URL it points at `catalyst.diagrid.io`.
 
 #### Project options
 
@@ -256,7 +256,7 @@ These three change behavior **without any compile error**. The first affects liv
    diagrid subscription delete checkout-pubsub --project your-project
    ```
 
-   You can also delete it in the Diagrid Web Console. Subscriptions you named yourself through `WithSubscription(name, ...)` are not affected.
+   You can also delete it in the Diagrid Console. Subscriptions you named yourself through `WithSubscription(name, ...)` are not affected.
 
 2. **Scopes and metadata are reset on every run.** Components and subscriptions now reconcile — see [How provisioning behaves on re-run](#how-provisioning-behaves-on-re-run). Scopes or metadata that you set in the portal or with the CLI are **overwritten**. Put them in the AppHost.
 
