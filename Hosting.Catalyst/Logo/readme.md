@@ -1,4 +1,4 @@
-# Catalyst Aspire Logos
+# Diagrid Aspire Logos
 
 Have a bit of fun and add an image to show on component boot here!
 

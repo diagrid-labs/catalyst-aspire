@@ -1,6 +1,6 @@
-name: "Nightly (real Catalyst)"
+name: "Nightly (real Diagrid)"
 
-# Runs the opt-in smoke suite and re-captures the CLI fixtures against a real Catalyst account.
+# Runs the opt-in smoke suite and re-captures the CLI fixtures against a real Diagrid account.
 # It is NOT a required check and never gates a merge: a failure opens an issue, fixture drift opens a PR.
 # Skipped entirely when the CATALYST_API_KEY secret is absent (forks, or a repo without the account).
 #
@@ -109,7 +109,7 @@ jobs:
           # A revoked key then surfaced three steps later as "Invalid token: apikey not found" from whichever
           # command happened to run first. whoami is the cheapest real call, so the key is proven here instead.
           if ! diagrid whoami --no-color=true > /dev/null 2>&1; then
-            echo "::error title=Invalid CATALYST_API_KEY::diagrid login succeeded but 'diagrid whoami' failed, so the stored key is not accepted by the server. The key is structurally valid (login parses the org id from it) but revoked, deleted, or from another environment. Regenerate it in the Catalyst portal and update the CATALYST_API_KEY secret."
+            echo "::error title=Invalid CATALYST_API_KEY::diagrid login succeeded but 'diagrid whoami' failed, so the stored key is not accepted by the server. The key is structurally valid (login parses the org id from it) but revoked, deleted, or from another environment. Regenerate it in the Diagrid Web Console and update the CATALYST_API_KEY secret."
             exit 1
           fi
 
@@ -306,7 +306,7 @@ jobs:
           is still updated every night, so nothing is lost and a PR can be opened from it by hand.
 
           Read the diff before accepting it: normalisation replaces tokens, e-mail addresses, UUID-shaped ids and
-          timestamps, but Catalyst resource ids are plain numbers and are **not** normalised, so a capture can
+          timestamps, but Diagrid resource ids are plain numbers and are **not** normalised, so a capture can
           carry real project and app ids and the hostnames derived from them into this public repository.
           EOF
           )
@@ -335,5 +335,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh issue create \
-            --title "Nightly Catalyst run failed ($(date -u +%Y-%m-%d))" \
+            --title "Nightly Diagrid run failed ($(date -u +%Y-%m-%d))" \
             --body "Smoke: ${{ steps.smoke.outcome }}. Fixture capture: ${{ steps.capture.outcome }}. Schemas: ${{ steps.schemas.outcome }}. Secret scan: ${{ steps.scan.outcome }}. Sweep: ${{ steps.sweep.outcome }}. Credential removal: ${{ steps.logout.outcome }}. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

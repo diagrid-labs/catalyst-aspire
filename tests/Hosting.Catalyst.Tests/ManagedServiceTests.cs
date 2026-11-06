@@ -14,7 +14,7 @@ public class ManagedServiceTests
         return configure(builder.AddCatalystProject("demo")).Resource;
     }
 
-    // The default is the Catalyst resource's own name. It is expected to be overridden, because the store has to
+    // The default is the Diagrid resource's own name. It is expected to be overridden, because the store has to
     // match whatever Dapr state store component the services already address — see DemoWiring, which names it.
     // Mutation: change the constant to "statestore" and the demo's explicit name silently becomes redundant,
     // hiding the step a developer moving off Dapr OSS actually has to take.

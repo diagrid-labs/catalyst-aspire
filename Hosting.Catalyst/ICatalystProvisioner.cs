@@ -32,17 +32,17 @@ public interface ICatalystProvisioner
     Task UpsertSubscriptionAsync(string projectName, SubscriptionDescriptor descriptor, CancellationToken cancellationToken);
 
     /// <summary>
-    ///     Creates a project in Catalyst.
+    ///     Creates a project in Diagrid.
     /// </summary>
     Task CreateProjectAsync(string projectName, ProjectDescriptor descriptor, CancellationToken cancellationToken);
 
     /// <summary>
-    ///     Use an existing project in Catalyst.
+    ///     Use an existing project in Diagrid.
     /// </summary>
     Task UseProjectAsync(string projectName, CancellationToken cancellationToken);
 
     /// <summary>
-    ///     Gets details about a Catalyst project, or null while it is still coming up (no endpoints yet).
+    ///     Gets details about a Diagrid project, or null while it is still coming up (no endpoints yet).
     /// </summary>
     Task<ProjectDetails?> TryGetProjectDetailsAsync(string projectName, CancellationToken cancellationToken);
 
@@ -53,22 +53,22 @@ public interface ICatalystProvisioner
     Task<ProjectDetails> WaitForProjectReadyAsync(string projectName, TimeSpan timeout, CancellationToken cancellationToken);
 
     /// <summary>
-    ///     Creates an app in Catalyst.
+    ///     Creates an app in Diagrid.
     /// </summary>
     Task CreateAppAsync(string name, string projectName, CancellationToken cancellationToken);
 
     /// <summary>
-    ///     Gets details about an app in Catalyst.
+    ///     Gets details about an app in Diagrid.
     /// </summary>
     Task<AppDetails> GetAppDetailsAsync(string name, string projectName, CancellationToken cancellationToken);
 
     /// <summary>
-    ///     Creates an agent in Catalyst (<c>agent create --ignore-if-exists</c>).
+    ///     Creates an agent in Diagrid (<c>agent create --ignore-if-exists</c>).
     /// </summary>
     Task CreateAgentAsync(string name, string projectName, CancellationToken cancellationToken);
 
     /// <summary>
-    ///     Gets details about an agent in Catalyst. Its token is read from the embedded app identity.
+    ///     Gets details about an agent in Diagrid. Its token is read from the embedded app identity.
     /// </summary>
     Task<AppDetails> GetAgentDetailsAsync(string name, string projectName, CancellationToken cancellationToken);
 
@@ -80,12 +80,12 @@ public interface ICatalystProvisioner
     Task UpsertComponentAsync(ComponentDescriptor descriptor, string projectName, bool isManagedServiceComponent, CancellationToken cancellationToken);
 
     /// <summary>
-    ///     Creates a Catalyst pubsub service.
+    ///     Creates a Diagrid pubsub service.
     /// </summary>
     Task CreatePubSubAsync(string name, PubSubDescriptor options, CancellationToken cancellationToken);
 
     /// <summary>
-    ///     Creates a Catalyst KV store.
+    ///     Creates a Diagrid KV store.
     /// </summary>
     Task CreateKvStoreAsync(string name, KvStoreDescriptor options, CancellationToken cancellationToken);
 

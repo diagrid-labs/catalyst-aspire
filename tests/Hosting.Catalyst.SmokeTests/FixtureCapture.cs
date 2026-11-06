@@ -20,7 +20,7 @@ public partial class FixtureCapture
     private const string Redacted = "redacted";
     private const string MockUuid = "00000000-0000-0000-0000-000000000001";
 
-    /// <summary>Stands in for a Catalyst resource id. Eight digits, so re-running the masks is a no-op.</summary>
+    /// <summary>Stands in for a Diagrid resource id. Eight digits, so re-running the masks is a no-op.</summary>
     private const string MockNumericId = "00000000";
 
     // Every timestamp collapses to this one value so a capture on another day does not read as drift. It is written
@@ -207,7 +207,7 @@ public partial class FixtureCapture
             s = s.Replace(name, "demo", StringComparison.Ordinal);
         }
 
-        // Catalyst resource ids are plain numbers, so Uuid() never matched them and they reached the fixtures
+        // Diagrid resource ids are plain numbers, so Uuid() never matched them and they reached the fixtures
         // intact: a uid, and the project id inside every endpoint host and spiffeId. They change on every
         // capture, so leaving them in would also report drift every night for ever.
         s = NumericResourceId().Replace(s, MockNumericId);
@@ -292,7 +292,7 @@ public partial class FixtureCapture
     [GeneratedRegex(@"^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$")]
     private static partial Regex Uuid();
 
-    // Six or more digits in a row: a Catalyst resource id, wherever it sits (a bare uid, or embedded in
+    // Six or more digits in a row: a Diagrid resource id, wherever it sits (a bare uid, or embedded in
     // "grpc-prj14272806.cloud.r1.diagrid.io"). Anchorless on purpose. Ports and resourceVersion are JSON
     // numbers, not strings, so they never reach this; a normalised timestamp has no run this long.
     [GeneratedRegex(@"\d{6,}")]

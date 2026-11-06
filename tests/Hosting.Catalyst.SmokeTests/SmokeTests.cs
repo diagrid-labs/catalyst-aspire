@@ -46,10 +46,10 @@ public class SmokeTests
     }
 
     // Deliberately NOT skippable. Every other test here needs an account, so the harness itself was only ever
-    // exercised by the nightly -- and the first nightly that ran it failed before reaching Catalyst at all,
+    // exercised by the nightly -- and the first nightly that ran it failed before reaching Diagrid at all,
     // because ProjectPath pointed inside this test's own bin directory where no .csproj can exist.
     // Aspire reads the project file while building the model, so a wrong path breaks the smoke test for a
-    // reason that has nothing to do with Catalyst. This check costs nothing and runs on every CI build.
+    // reason that has nothing to do with Diagrid. This check costs nothing and runs on every CI build.
     [Fact]
     public void The_harness_points_at_the_real_TestApi_project()
     {
@@ -64,7 +64,7 @@ public class SmokeTests
     [SkippableFact(Timeout = 25 * 60 * 1000)]
     public async Task Provisions_an_app_and_an_agent_with_state_and_pubsub_then_tears_down()
     {
-        Skip.IfNot(SmokeProject.Enabled, "Set CATALYST_SMOKE_ENABLED=true (and log in) to run against a real Catalyst account.");
+        Skip.IfNot(SmokeProject.Enabled, "Set CATALYST_SMOKE_ENABLED=true (and log in) to run against a real Diagrid account.");
 
         var name = SmokeProject.NewName();
         try

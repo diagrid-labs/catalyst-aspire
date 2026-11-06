@@ -1,7 +1,7 @@
 namespace Diagrid.Aspire.Hosting.Catalyst.Model;
 
 /// <summary>
-/// The kind of Catalyst identity a resource is backed by.
+/// The kind of Diagrid identity a resource is backed by.
 /// </summary>
 public enum IdentityKind
 {
