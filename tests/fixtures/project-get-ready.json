@@ -1,5 +1,5 @@
 {
-  "_capturedFrom": "diagrid CLI 1.112.0, captured by the nightly workflow",
+  "_capturedFrom": "diagrid CLI 1.120.0, captured by the nightly workflow",
   "apiVersion": "cra.diagrid.io/v1beta1",
   "kind": "Project",
   "metadata": {
@@ -16,7 +16,7 @@
     "defaultAgentInfrastructureEnabled": false,
     "defaultKVStoreEnabled": false,
     "defaultPubsubEnabled": false,
-    "defaultWorkflowStoreEnabled": false,
+    "defaultWorkflowStoreEnabled": true,
     "disableAppTunnels": false,
     "displayName": "demo",
     "enableWorkflowHistorySigning": false,
@@ -24,7 +24,7 @@
     "region": "diagrid-aws-eu-west"
   },
   "status": {
-    "defaultWorkflowStoreEnabled": false,
+    "defaultWorkflowStoreEnabled": true,
     "endpoints": {
       "grpc": {
         "host": "grpc-prj00000000.cloud.r1.diagrid.io",

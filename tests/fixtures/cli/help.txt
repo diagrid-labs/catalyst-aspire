@@ -8,6 +8,10 @@ subscriptions and HTTP endpoints. Runtime data is not copied. State,
 key/value data, pub/sub messages and workflow history stay in the source
 project, and the copy starts empty.
 
+Where the region supports workflows, a new project gets a Diagrid-managed
+workflow store by default. Pass --disable-managed-workflow to create the
+project without it and bring your own actor state store for workflows.
+
 Usage:
   diagrid project create <project-name> [flags]
 
@@ -22,8 +26,8 @@ Examples:
   # Create a project across every region of a region group
   diagrid project create my-project --region-group prod-us
 
-  # Create a project with managed workflow enabled
-  diagrid project create my-project --enable-managed-workflow
+  # Create a project without the Diagrid-managed workflow store
+  diagrid project create my-project --disable-managed-workflow
 
   # Create a project with a custom max body size for all ids
   diagrid project create my-project --global-id-max-body-size 8Mi
@@ -42,7 +46,7 @@ Flags:
   -r, --region string                     Region ID where the project will be deployed
       --deploy-managed-pubsub             Deploy a Diagrid Pub/Sub Broker for use with the Pub/Sub API
       --deploy-managed-kv                 Deploy a Diagrid Key/Value Store for use with the Key/Value API
-      --enable-managed-workflow           Enable Workflow API by leveraging a Diagrid-managed state store used by the workflow engine. Alternatively, enable Workflow support by providing an external component to a transactional state store
+      --disable-managed-workflow          Create the project without the Diagrid-managed workflow store, which is on by default where the region supports workflows
       --enable-workflow-history-signing   Enable workflow history signing for this project. Can only be set at creation time
   -w, --wait                              Wait for long-running resource creation to finish
       --use                               Set the created project as the default project for the current context
@@ -140,6 +144,7 @@ Flags:
       --max-body-size string                    Maximum request body size (e.g. "4Mi", "16Mi")
       --app-channel-timeout-seconds int32       Timeout in seconds for the sidecar to connect to the application endpoint
   -c, --app-config string                       Name of the Dapr Configuration the App loads, e.g. for tracing, access control or feature flags. It is the Configuration "diagrid app access" edits, so Apps bound to the same Configuration share its access rules
+      --workflow-api string                     Workflow API the App's workflows use: dapr (default) or temporal (preview)
       --enable-app-health-check                 Enable application-level health probing
       --app-health-check-path string            Health check endpoint path (e.g. /healthz)
       --app-health-probe-interval int32         Health probe interval in seconds
@@ -214,6 +219,8 @@ Flags:
       --archive-binding-name string       Output-binding component name to write archived workflow history through. Setting this enables archiving
       --archive-binding-type string       Binding component type for the archive destination (e.g., "bindings.aws.s3")
       --enable-workflow-archive strings   Workflow statuses to archive: COMPLETED, FAILED, TERMINATED. Comma-separated or repeated. Statuses not listed are not archived
+      --label stringToString              Label (key=value) applied to the Agent's workload pod and service account. Repeatable. Only supported in self-hosted regions (default [])
+      --annotation stringToString         Annotation (key=value) applied to the Agent's workload pod and service account, e.g. for managed identity. Repeatable. Only supported in self-hosted regions (default [])
   -h, --help                              help for create
 
 Global Flags:
